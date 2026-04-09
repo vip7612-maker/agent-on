@@ -480,6 +480,37 @@ app.delete('/api/admin/rooms/remove', async (req, res) => {
   }
 });
 
+// 어드민용: 채팅방 이름 변경
+app.put('/api/admin/rooms/:id', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { id } = req.params;
+  const { name } = req.body;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    await db.execute({ sql: 'UPDATE rooms SET name = ? WHERE id = ?', args: [name, id] });
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 어드민용: 채팅방 삭제
+app.delete('/api/admin/rooms/:id', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { id } = req.params;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    await db.execute({ sql: 'DELETE FROM room_members WHERE room_id = ?', args: [id] });
+    await db.execute({ sql: 'DELETE FROM messages WHERE room_id = ?', args: [id] });
+    await db.execute({ sql: 'DELETE FROM rooms WHERE id = ?', args: [id] });
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // 어드민용: 회원 승인
 app.post('/api/admin/users/approve', async (req, res) => {
   const email = req.headers['user-email'];

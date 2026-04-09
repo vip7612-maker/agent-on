@@ -308,22 +308,39 @@
         </div>
       </div>
 
-      <div id="adminSettingsView" style="display: none; flex: 1; flex-direction: column; padding: 24px; overflow-y: auto; background-color: var(--bg-main);">
+      <div id="adminSettingsView" style="display: none; flex: 1; flex-direction: column; padding: 24px; overflow-y: auto; background-color: var(--bg-main); max-width: 750px;">
         <div style="margin-bottom:24px;">
           <h2 style="font-weight: 600; font-size: 1.5rem; margin-bottom: 4px; display:flex; align-items:center; gap:8px;">
             <iconify-icon icon="lucide:shield" style="color:#3b82f6;"></iconify-icon> 관리자 설정
           </h2>
-          <span style="color: var(--text-muted); font-size: 0.9rem;">회원 승인 및 채팅방 멤버를 관리하세요.</span>
+          <span style="color: var(--text-muted); font-size: 0.9rem;">사용자 승인, 그룹챗 개설 및 멤버를 관리하세요.</span>
         </div>
         
-        <div style="margin-bottom:24px; padding:20px; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-sidebar);">
-          <h3 style="margin-bottom:12px; display:flex; align-items:center; gap:6px;"><iconify-icon icon="lucide:users" style="color:#10b981;"></iconify-icon> 사용자 승인 관리</h3>
+        <!-- 사용자 승인 관리 -->
+        <div style="margin-bottom:20px; padding:20px; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-sidebar);">
+          <h3 style="margin-bottom:12px; display:flex; align-items:center; gap:6px; font-size:1rem;">
+            <iconify-icon icon="lucide:users" style="color:#10b981;"></iconify-icon> 사용자 승인 관리
+          </h3>
           <div id="adminUsersList" style="display:flex; flex-direction:column; gap:8px;"></div>
         </div>
         
+        <!-- 그룹챗 개설 -->
+        <div style="margin-bottom:20px; padding:20px; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-sidebar);">
+          <h3 style="margin-bottom:12px; display:flex; align-items:center; gap:6px; font-size:1rem;">
+            <iconify-icon icon="lucide:plus-circle" style="color:#f59e0b;"></iconify-icon> 새 그룹챗 개설
+          </h3>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="newRoomName" placeholder="그룹챗 이름 입력" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); font-size:0.95rem;" />
+            <button onclick="window.createNewRoom()" style="padding:10px 20px; border-radius:8px; background:linear-gradient(135deg, #f59e0b, #ef4444); border:none; color:#fff; cursor:pointer; font-weight:500; white-space:nowrap;">개설</button>
+          </div>
+        </div>
+        
+        <!-- 그룹챗 목록 및 설정 -->
         <div style="padding:20px; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-sidebar);">
-          <h3 style="margin-bottom:12px; display:flex; align-items:center; gap:6px;"><iconify-icon icon="lucide:hash" style="color:#8b5cf6;"></iconify-icon> 사무국 멤버 관리</h3>
-          <div id="adminRoomMembersList" style="display:flex; flex-direction:column; gap:8px;"></div>
+          <h3 style="margin-bottom:16px; display:flex; align-items:center; gap:6px; font-size:1rem;">
+            <iconify-icon icon="lucide:message-circle" style="color:#8b5cf6;"></iconify-icon> 그룹챗 관리
+          </h3>
+          <div id="adminRoomsList" style="display:flex; flex-direction:column; gap:16px;"></div>
         </div>
       </div>
     </main>

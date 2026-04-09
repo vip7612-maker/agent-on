@@ -1042,62 +1042,143 @@ async function fetchMyRooms(email) {
 }
 
 async function loadAdminData() {
-  const userInfoStr = localStorage.getItem('agentOn_user');
-  if(!userInfoStr) return;
-  const email = JSON.parse(userInfoStr).email;
+  const email = getCurrentUserEmail();
+  if(!email) return;
   
-  // Load users
+  // 1. 사용자 승인 관리,
   try {
     const userRes = await fetch('/api/admin/users', { headers: {'User-Email': email} });
     const userData = await userRes.json();
     if(userData.success) {
-      document.getElementById('adminUsersList').innerHTML = userData.users.map(u => `
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid var(--border-color); border-radius:8px;">
-          <div><b>${u.name}</b> (${u.email}) - <span style="color:${u.role==='APPROVED'?'#10b981':(u.role==='PENDING'?'#f59e0b':'#3b82f6')}">${u.role}</span></div>
-          <button onclick="window.approveUser('${u.email}', 'APPROVED')" style="padding:4px 8px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-main); color:var(--text-main); cursor:pointer;">승인</button>
-        </div>
-      `).join('');
+      document.getElementById('adminUsersList').innerHTML = userData.users.map(u => {
+        const roleColors = {'ADMIN': '#3b82f6', 'APPROVED': '#10b981', 'PENDING': '#f59e0b'};
+        const roleLabels = {'ADMIN': '관리자', 'APPROVED': '승인됨', 'PENDING': '대기 중'};
+        const isAdmin = u.role === 'ADMIN';
+        let actionBtns = '';
+        if (!isAdmin) {
+          if (u.role === 'PENDING') {
+            actionBtns = `<button onclick="window.approveUser('${u.email}', 'APPROVED')" style="padding:5px 12px; border-radius:6px; background:rgba(16,185,129,0.15); border:1px solid #10b981; color:#10b981; cursor:pointer; font-size:0.8rem;">승인</button>`;
+          } else {
+            actionBtns = `<button onclick="window.approveUser('${u.email}', 'PENDING')" style="padding:5px 12px; border-radius:6px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#ef4444; cursor:pointer; font-size:0.8rem;">해제</button>`;
+          }
+        }
+        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-main);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:32px; height:32px; border-radius:50%; background:${roleColors[u.role]}20; display:flex; align-items:center; justify-content:center; color:${roleColors[u.role]}; font-size:0.8rem; font-weight:600;">${(u.name || '?').charAt(0)}</div>
+            <div>
+              <div style="font-weight:500; font-size:0.95rem;">${u.name || '이름없음'}</div>
+              <div style="font-size:0.8rem; color:var(--text-muted);">${u.email}</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:0.75rem; padding:3px 8px; border-radius:4px; background:${roleColors[u.role]}20; color:${roleColors[u.role]};">${roleLabels[u.role] || u.role}</span>
+            ${actionBtns}
+          </div>
+        </div>`;
+      }).join('');
     }
-  } catch(e) {}
+  } catch(e) { console.error(e); }
 
-  // Load Rooms/Members
+  // 2. 그룹챗 목록 및 멤버 관리
   try {
     const roomRes = await fetch('/api/admin/rooms', { headers: {'User-Email': email} });
     const roomData = await roomRes.json();
-    if(roomData.success) {
-      const secretariat = roomData.rooms.find(r => r.name === '사무국');
-      const targetRoomId = secretariat ? secretariat.id : 1;
-      const usersInRoom = roomData.members.filter(m => m.room_id === targetRoomId).map(m => m.user_email);
-      document.getElementById('adminRoomMembersList').innerHTML = `
-        <div style="margin-bottom:8px; font-size:0.9rem; color:var(--text-muted);">현재 멤버: ${usersInRoom.join(', ')}</div>
-        <div style="display:flex; gap:8px;">
-           <input type="text" id="inviteEmail" placeholder="초대할 이메일 입력" style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-main);" />
-           <button onclick="window.inviteUser(${targetRoomId})" style="padding:8px 16px; border-radius:8px; background:var(--user-msg); border:none; cursor:pointer;">초대</button>
-        </div>
-      `;
+    const roomsEl = document.getElementById('adminRoomsList');
+    if(!roomsEl) return;
+    
+    if(roomData.success && roomData.rooms.length > 0) {
+      roomsEl.innerHTML = roomData.rooms.map(room => {
+        const roomMembers = roomData.members.filter(m => m.room_id === room.id);
+        const memberTags = roomMembers.map(m => 
+          `<div style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:16px; background:var(--bg-input); font-size:0.8rem; border:1px solid var(--border-color);">
+            <span>${m.user_email.split('@')[0]}</span>
+            <button onclick="event.stopPropagation(); window.removeMember(${room.id}, '${m.user_email}')" style="background:none; border:none; cursor:pointer; color:#ef4444; font-size:0.9rem; padding:0; line-height:1;" title="삭제">×</button>
+          </div>`
+        ).join('');
+        
+        return `<div style="padding:16px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-main);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <iconify-icon icon="lucide:hash" style="color:#8b5cf6; font-size:1.1rem;"></iconify-icon>
+              <input type="text" value="${room.name}" id="roomName_${room.id}" style="font-weight:600; font-size:1rem; background:transparent; border:none; color:var(--text-high); border-bottom:1px solid transparent; transition:border-color 0.2s; padding:2px 0;" onfocus="this.style.borderBottomColor='#8b5cf6'" onblur="this.style.borderBottomColor='transparent'" />
+              <button onclick="window.renameRoom(${room.id})" style="padding:3px 8px; border-radius:4px; border:1px solid var(--border-color); background:transparent; color:#8b5cf6; cursor:pointer; font-size:0.75rem;">저장</button>
+            </div>
+            <button onclick="if(confirm('정말 이 그룹챗을 삭제하시겠습니까?')) window.deleteRoom(${room.id})" style="padding:4px 10px; border-radius:6px; border:1px solid rgba(239,68,68,0.3); background:transparent; color:#ef4444; cursor:pointer; font-size:0.8rem;">삭제</button>
+          </div>
+          <div style="margin-bottom:10px;">
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:6px;">참여자 (${roomMembers.length}명)</div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">${memberTags || '<span style="font-size:0.85rem; color:var(--text-muted);">참여자가 없습니다</span>'}</div>
+          </div>
+          <div style="display:flex; gap:6px; margin-top:8px;">
+            <input type="text" placeholder="이메일로 멤버 추가" id="invite_${room.id}" style="flex:1; padding:8px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); font-size:0.85rem;" />
+            <button onclick="window.inviteToRoom(${room.id})" style="padding:8px 14px; border-radius:6px; background:rgba(16,185,129,0.15); border:1px solid #10b981; color:#10b981; cursor:pointer; font-size:0.85rem; white-space:nowrap;">추가</button>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      roomsEl.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.9rem;">개설된 그룹챗이 없습니다.</div>';
     }
-  } catch(e) {}
+  } catch(e) { console.error(e); }
 }
 
+// 사용자 승인/해제
 window.approveUser = async function(targetEmail, role) {
-  const userInfoStr = localStorage.getItem('agentOn_user');
-  if(!userInfoStr) return;
-  const email = JSON.parse(userInfoStr).email;
+  const email = getCurrentUserEmail();
   await fetch('/api/admin/users/approve', {
     method: 'POST',
     headers: {"Content-Type": "application/json", "User-Email": email},
     body: JSON.stringify({ targetEmail, role })
   });
-  alert('승인 처리되었습니다.');
   loadAdminData();
 }
 
-window.inviteUser = async function(roomId) {
-  const userInfoStr = localStorage.getItem('agentOn_user');
-  if(!userInfoStr) return;
-  const email = JSON.parse(userInfoStr).email;
-  const targetEmail = document.getElementById('inviteEmail').value;
+// 새 그룹챗 개설
+window.createNewRoom = async function() {
+  const name = document.getElementById('newRoomName').value.trim();
+  if(!name) return alert('그룹챗 이름을 입력하세요.');
+  const email = getCurrentUserEmail();
+  const res = await fetch('/api/admin/rooms', {
+    method: 'POST',
+    headers: {"Content-Type": "application/json", "User-Email": email},
+    body: JSON.stringify({ name })
+  });
+  const data = await res.json();
+  if(data.success) {
+    document.getElementById('newRoomName').value = '';
+    loadAdminData();
+  }
+}
+
+// 그룹챗 이름 변경
+window.renameRoom = async function(roomId) {
+  const input = document.getElementById('roomName_' + roomId);
+  const name = input.value.trim();
+  if(!name) return;
+  const email = getCurrentUserEmail();
+  await fetch('/api/admin/rooms/' + roomId, {
+    method: 'PUT',
+    headers: {"Content-Type": "application/json", "User-Email": email},
+    body: JSON.stringify({ name })
+  });
+  loadAdminData();
+}
+
+// 그룹챗 삭제
+window.deleteRoom = async function(roomId) {
+  const email = getCurrentUserEmail();
+  await fetch('/api/admin/rooms/' + roomId, {
+    method: 'DELETE',
+    headers: {"User-Email": email}
+  });
+  loadAdminData();
+}
+
+// 멤버 추가
+window.inviteToRoom = async function(roomId) {
+  const input = document.getElementById('invite_' + roomId);
+  const targetEmail = input.value.trim();
   if(!targetEmail) return;
+  const email = getCurrentUserEmail();
   const res = await fetch('/api/admin/rooms/invite', {
     method: 'POST',
     headers: {"Content-Type": "application/json", "User-Email": email},
@@ -1105,11 +1186,23 @@ window.inviteUser = async function(roomId) {
   });
   const data = await res.json();
   if(data.success) {
-    alert('초대되었습니다.');
+    input.value = '';
     loadAdminData();
   } else {
-    alert('초대 실패: ' + (data.error || '알 수 없는 에러'));
+    alert('추가 실패: ' + (data.error || '알 수 없는 에러'));
   }
+}
+
+// 멤버 제거
+window.removeMember = async function(roomId, targetEmail) {
+  if(!confirm(targetEmail + '을(를) 이 채팅방에서 제거하시겠습니까?')) return;
+  const email = getCurrentUserEmail();
+  await fetch('/api/admin/rooms/remove', {
+    method: 'DELETE',
+    headers: {"Content-Type": "application/json", "User-Email": email},
+    body: JSON.stringify({ roomId, targetEmail })
+  });
+  loadAdminData();
 }
 
 // ========================================

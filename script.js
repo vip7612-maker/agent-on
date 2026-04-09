@@ -10,6 +10,7 @@ const sidebar = document.querySelector('.sidebar');
 let isWaitingForBot = false;
 let currentMsgCount = 0;
 let isViewingHistory = false;
+let selectedHarness = null; // 선택된 하네스 객체 {id, title, content}
 
 const GOOGLE_CLIENT_ID = '877998748218-emlbeacavipfdl1od8k61b4034on29n3.apps.googleusercontent.com';
 
@@ -270,6 +271,15 @@ async function handleSend() {
   inputEl.value = '';
   isWaitingForBot = true;
 
+  // 하네스가 선택되어 있으면 합성
+  let finalMessage = text;
+  if (selectedHarness) {
+    finalMessage = `[하네스: ${selectedHarness.title}]\n${selectedHarness.content}\n\n---\n사용자 메시지: ${text}`;
+    selectedHarness = null;
+    const indicator = document.getElementById('harnessIndicator');
+    if(indicator) indicator.remove();
+  }
+
   // 사용자의 입력은 낙관적 렌더링(Optimistic update)
   const userDiv = document.createElement('div');
   userDiv.className = `message user`;
@@ -302,7 +312,7 @@ async function handleSend() {
     await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text })
+      body: JSON.stringify({ message: finalMessage })
     });
     // POST 직후 즉각 1회 동기화 (Gemini 폴백이 작동했을 수 있으므로)
     syncChats();
@@ -653,6 +663,7 @@ window.addEventListener('DOMContentLoaded', () => {
     adminMenu.addEventListener('click', () => {
       document.getElementById('adminModal').style.display = 'flex';
       loadAdminData();
+      loadAdminHarnesses();
       document.getElementById('userMenuPopup').classList.remove('show');
     });
   }
@@ -765,3 +776,156 @@ window.inviteUser = async function(roomId) {
     alert('초대 실패: ' + (data.error || '알 수 없는 에러'));
   }
 }
+
+// ========================================
+// 하네스 로직
+// ========================================
+
+// 채팅창 하네스 팝업 토글
+function initHarnessPopup() {
+  const btn = document.getElementById('harnessBtn');
+  const popup = document.getElementById('harnessPopup');
+  if(!btn || !popup) return;
+
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if(popup.style.display === 'block') {
+      popup.style.display = 'none';
+      return;
+    }
+    // 서버에서 노출용 하네스 목록 가져오기
+    try {
+      const res = await fetch('/api/harnesses');
+      const data = await res.json();
+      const listEl = document.getElementById('harnessListChat');
+      if(data.success && data.harnesses.length > 0) {
+        listEl.innerHTML = data.harnesses.map(h => `
+          <div class="harness-item" data-id="${h.id}" style="padding:10px 16px; cursor:pointer; display:flex; align-items:center; gap:8px; transition:background 0.15s;" 
+               onmouseover="this.style.background='var(--bg-input)'" onmouseout="this.style.background='transparent'">
+            <iconify-icon icon="lucide:zap" style="color:#f59e0b; flex-shrink:0;"></iconify-icon>
+            <div>
+              <div style="font-weight:500; font-size:0.9rem;">${h.title}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${h.content}</div>
+            </div>
+          </div>
+        `).join('');
+        // 클릭 이벤트 바인딩
+        listEl.querySelectorAll('.harness-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const hId = parseInt(item.dataset.id);
+            const harness = data.harnesses.find(h => h.id === hId);
+            if(harness) selectHarness(harness);
+            popup.style.display = 'none';
+          });
+        });
+      } else {
+        listEl.innerHTML = '<div style="padding:12px 16px; color:var(--text-muted); font-size:0.85rem;">등록된 하네스가 없습니다.<br>관리자 설정에서 추가하세요.</div>';
+      }
+    } catch(e) { console.error(e); }
+    popup.style.display = 'block';
+  });
+
+  // 바깥 클릭 시 닫기
+  document.addEventListener('click', (e) => {
+    if(!popup.contains(e.target) && !btn.contains(e.target)) {
+      popup.style.display = 'none';
+    }
+  });
+}
+
+function selectHarness(harness) {
+  selectedHarness = harness;
+  // 입력창 위에 선택된 하네스 인디케이터 표시
+  let indicator = document.getElementById('harnessIndicator');
+  if(!indicator) {
+    indicator = document.createElement('div');
+    indicator.id = 'harnessIndicator';
+    indicator.style.cssText = 'display:flex; align-items:center; gap:6px; padding:6px 12px; margin-bottom:4px; background:rgba(245,158,11,0.15); border-radius:8px; font-size:0.8rem; color:#f59e0b;';
+    const inputContainer = document.querySelector('.input-container');
+    if(inputContainer) inputContainer.insertBefore(indicator, inputContainer.firstChild);
+  }
+  indicator.innerHTML = `<iconify-icon icon="lucide:zap"></iconify-icon> <b>${harness.title}</b> 하네스 적용 중 <button onclick="clearHarness()" style="margin-left:auto; background:none; border:none; cursor:pointer; color:#f59e0b;"><iconify-icon icon="lucide:x"></iconify-icon></button>`;
+  inputEl.focus();
+}
+
+window.clearHarness = function() {
+  selectedHarness = null;
+  const indicator = document.getElementById('harnessIndicator');
+  if(indicator) indicator.remove();
+}
+
+// 관리자 하네스 CRUD
+window.createHarness = async function() {
+  const userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  const email = JSON.parse(userInfoStr).email;
+  const title = document.getElementById('newHarnessTitle').value.trim();
+  const content = document.getElementById('newHarnessContent').value.trim();
+  if(!title || !content) return alert('제목과 내용을 모두 입력해주세요.');
+  const res = await fetch('/api/admin/harnesses', {
+    method: 'POST',
+    headers: {"Content-Type": "application/json", "User-Email": email},
+    body: JSON.stringify({ title, content })
+  });
+  const data = await res.json();
+  if(data.success) {
+    document.getElementById('newHarnessTitle').value = '';
+    document.getElementById('newHarnessContent').value = '';
+    loadAdminHarnesses();
+  }
+}
+
+async function loadAdminHarnesses() {
+  const userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  const email = JSON.parse(userInfoStr).email;
+  try {
+    const res = await fetch('/api/admin/harnesses', { headers: {'User-Email': email} });
+    const data = await res.json();
+    if(data.success) {
+      document.getElementById('adminHarnessList').innerHTML = data.harnesses.map(h => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border:1px solid var(--border-color); border-radius:8px;">
+          <div style="flex:1;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <iconify-icon icon="lucide:zap" style="color:#f59e0b;"></iconify-icon>
+              <b>${h.title}</b>
+              <span style="font-size:0.75rem; padding:2px 6px; border-radius:4px; background:${h.is_visible?'rgba(16,185,129,0.2)':'rgba(239,68,68,0.2)'}; color:${h.is_visible?'#10b981':'#ef4444'};">${h.is_visible?'노출':'숨김'}</span>
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px;">${h.content}</div>
+          </div>
+          <div style="display:flex; gap:4px; flex-shrink:0;">
+            <button onclick="window.toggleHarnessVisibility(${h.id}, '${h.title.replace(/'/g, "\\'") }', \`${h.content.replace(/`/g, '\\`')}\`, ${h.is_visible?0:1})" style="padding:4px 8px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-main); color:var(--text-main); cursor:pointer; font-size:0.8rem;">${h.is_visible?'숨기기':'노출'}</button>
+            <button onclick="window.deleteHarness(${h.id})" style="padding:4px 8px; border-radius:4px; border:1px solid rgba(239,68,68,0.3); background:var(--bg-main); color:#ef4444; cursor:pointer; font-size:0.8rem;">삭제</button>
+          </div>
+        </div>
+      `).join('');
+    }
+  } catch(e) {}
+}
+
+window.toggleHarnessVisibility = async function(id, title, content, newVisible) {
+  const userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  const email = JSON.parse(userInfoStr).email;
+  await fetch('/api/admin/harnesses/' + id, {
+    method: 'PUT',
+    headers: {"Content-Type": "application/json", "User-Email": email},
+    body: JSON.stringify({ title, content, is_visible: newVisible })
+  });
+  loadAdminHarnesses();
+}
+
+window.deleteHarness = async function(id) {
+  if(!confirm('이 하네스를 삭제하시겠습니까?')) return;
+  const userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  const email = JSON.parse(userInfoStr).email;
+  await fetch('/api/admin/harnesses/' + id, {
+    method: 'DELETE',
+    headers: {'User-Email': email}
+  });
+  loadAdminHarnesses();
+}
+
+// 초기화
+initHarnessPopup();

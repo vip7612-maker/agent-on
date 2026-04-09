@@ -73,6 +73,18 @@ async function initDb() {
         FOREIGN KEY(room_id) REFERENCES rooms(id)
       )
     `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS harnesses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        is_visible INTEGER DEFAULT 1,
+        created_by TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(created_by) REFERENCES users(email)
+      )
+    `);
     
     // Seed initial admin if not exists
     try {
@@ -374,6 +386,76 @@ app.post('/api/admin/users/approve', async (req, res) => {
     const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
     if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
     await db.execute({ sql: 'UPDATE users SET role = ? WHERE email = ?', args: [role || 'APPROVED', targetEmail] });
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// =====================================
+// [하네스 관리] API
+// =====================================
+
+// 노출된 하네스 목록 (채팅창 팝업용)
+app.get('/api/harnesses', async (req, res) => {
+  try {
+    const result = await db.execute('SELECT id, title, content FROM harnesses WHERE is_visible = 1 ORDER BY id ASC');
+    res.json({ success: true, harnesses: result.rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 전체 하네스 목록 (어드민 관리용)
+app.get('/api/admin/harnesses', async (req, res) => {
+  const email = req.headers['user-email'];
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    const result = await db.execute('SELECT * FROM harnesses ORDER BY id ASC');
+    res.json({ success: true, harnesses: result.rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 하네스 생성
+app.post('/api/admin/harnesses', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { title, content } = req.body;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    await db.execute({ sql: 'INSERT INTO harnesses (title, content, is_visible, created_by) VALUES (?, ?, 1, ?)', args: [title, content, email] });
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 하네스 수정
+app.put('/api/admin/harnesses/:id', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { id } = req.params;
+  const { title, content, is_visible } = req.body;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    await db.execute({ sql: 'UPDATE harnesses SET title=?, content=?, is_visible=? WHERE id=?', args: [title, content, is_visible ?? 1, id] });
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 하네스 삭제
+app.delete('/api/admin/harnesses/:id', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { id } = req.params;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    await db.execute({ sql: 'DELETE FROM harnesses WHERE id=?', args: [id] });
     res.json({ success: true });
   } catch(e) {
     res.status(500).json({ error: e.message });

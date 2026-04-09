@@ -195,8 +195,7 @@ app.post('/api/chat', async (req, res) => {
 
     // 1. 외부 에이전트(다른 맥미니의 안티그래비티) 연동
     const settingRes = await db.execute({ sql: "SELECT value FROM settings WHERE key = 'ANTIGRAVITY_WEBHOOK_URL'" });
-    // 사용자가 강제로 입력을 요구했으므로 하드코딩된 주소를 최우선으로 적용 (또는 기본값으로 강력하게 지정)
-    const webhookUrl = (settingRes.rows.length > 0 && settingRes.rows[0].value) ? settingRes.rows[0].value : 'https://defensive-females-given-send.trycloudflare.com/webhook';
+    const webhookUrl = settingRes.rows.length > 0 && settingRes.rows[0].value ? settingRes.rows[0].value : null;
 
     if (webhookUrl) {
       try {

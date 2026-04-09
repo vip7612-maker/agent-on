@@ -6,7 +6,7 @@
   --bg-sidebar: #171717;
   --bg-input: #2f2f2f;
   --bg-message-user: #2f2f2f;
-  --bg-message-bot: transparent;
+  --bg-message-bot: #1e1e1e;
   --text-high: #ffffff;
   --text-muted: #b4b4b4;
   --border-color: #333333;
@@ -217,8 +217,10 @@ html, body {
 
 .message.bot .message-content {
   background-color: var(--bg-message-bot);
-  padding: 8px 0;
-  max-width: 100%;
+  padding: 16px 20px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  max-width: 90%;
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: break-word;

@@ -127,6 +127,7 @@ html, body {
   align-items: center;
   overflow: hidden;
   position: relative;
+  min-height: 0;
 }
 
 /* 대화 전 환영 화면 */
@@ -184,6 +185,8 @@ html, body {
   padding: 12px 18px;
   border-radius: 20px;
   max-width: 75%;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .message.bot {

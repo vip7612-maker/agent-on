@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Serif+KR:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=3.2" />
+  <link rel="stylesheet" href="style.css?v=3.3" />
   <!-- 아이콘 처리를 위해 Iconify 사용 -->
   <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
 </head>
@@ -46,12 +46,6 @@
             </div>
           </div>
           <div class="user-profile-icons" style="display: flex; align-items: center; gap: 6px; color: var(--text-muted);">
-            <button id="harnessGalleryBtn" style="background:none; border:1px solid var(--border-color); border-radius:6px; padding:3px 4px; cursor:pointer; display:flex; align-items:center; justify-content:center;" aria-label="하네스 갤러리">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 5L12 12L5 19M12 12L19 19" stroke="var(--text-muted)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M15.5 8.5L15.76 4.77A3.25 3.25 0 1 1 19.23 8.24Z" fill="#ef4444" />
-              </svg>
-            </button>
             <iconify-icon icon="lucide:chevrons-up-down" style="font-size: 1rem;"></iconify-icon>
           </div>
         </div>
@@ -63,6 +57,15 @@
           
           <div class="menu-req-item" id="adminSettingMenu" style="display: none;">
             <span><iconify-icon icon="lucide:shield"></iconify-icon> 관리자 설정</span>
+          </div>
+          <div class="menu-req-item" id="harnessSettingMenu" style="display: none;">
+            <span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;">
+                <path d="M5 5L12 12L5 19M12 12L19 19" stroke="currentColor" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M15.5 8.5L15.76 4.77A3.25 3.25 0 1 1 19.23 8.24Z" fill="#ef4444" />
+              </svg>
+              하네스 설정
+            </span>
           </div>
           <div class="menu-req-item">
             <span><iconify-icon icon="lucide:settings"></iconify-icon> 설정</span>
@@ -214,27 +217,26 @@
         <!-- 갤러리 그리드 -->
         <div id="harnessGalleryGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:16px;"></div>
       </div>
+      <!-- 관리자 설정 뷰 (우측 패널) -->
+      <div id="adminSettingsView" style="display: none; flex: 1; flex-direction: column; padding: 24px; overflow-y: auto; background-color: var(--bg-main);">
+        <div style="margin-bottom:24px;">
+          <h2 style="font-weight: 600; font-size: 1.5rem; margin-bottom: 4px; display:flex; align-items:center; gap:8px;">
+            <iconify-icon icon="lucide:shield" style="color:#3b82f6;"></iconify-icon> 관리자 설정
+          </h2>
+          <span style="color: var(--text-muted); font-size: 0.9rem;">회원 승인 및 채팅방 멤버를 관리하세요.</span>
+        </div>
+        
+        <div style="margin-bottom:24px; padding:20px; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-sidebar);">
+          <h3 style="margin-bottom:12px; display:flex; align-items:center; gap:6px;"><iconify-icon icon="lucide:users" style="color:#10b981;"></iconify-icon> 사용자 승인 관리</h3>
+          <div id="adminUsersList" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+        
+        <div style="padding:20px; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-sidebar);">
+          <h3 style="margin-bottom:12px; display:flex; align-items:center; gap:6px;"><iconify-icon icon="lucide:hash" style="color:#8b5cf6;"></iconify-icon> 사무국 멤버 관리</h3>
+          <div id="adminRoomMembersList" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+      </div>
     </main>
-  </div>
-  
-  <!-- 관리자 모달 -->
-  <div id="adminModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-    <div style="background:var(--bg-main); width:90%; max-width:600px; max-height:80vh; overflow-y:auto; border-radius:12px; padding:24px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h2 style="font-size:1.4rem;">관리자 및 회원 설정 (<span id="adminRoomName">전체</span>)</h2>
-        <button onclick="document.getElementById('adminModal').style.display='none'" style="background:none; border:none; cursor:pointer;"><iconify-icon icon="lucide:x" style="font-size:1.4rem; color:var(--text-high);"></iconify-icon></button>
-      </div>
-      
-      <div style="margin-bottom:24px;">
-        <h3>사용자 승인 관리</h3>
-        <div id="adminUsersList" style="margin-top:12px; display:flex; flex-direction:column; gap:8px;"></div>
-      </div>
-      
-      <div style="margin-bottom:24px;">
-        <h3>사무국 멤버 관리</h3>
-        <div id="adminRoomMembersList" style="margin-top:12px; display:flex; flex-direction:column; gap:8px;"></div>
-      </div>
-    </div>
   </div>
 
   <!-- 하네스 수정 모달 -->

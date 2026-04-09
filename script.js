@@ -12,6 +12,25 @@ let currentMsgCount = 0;
 let isViewingHistory = false;
 let selectedHarness = null; // 선택된 하네스 객체 {id, title, content}
 
+// 모든 메인 뷰를 숨기고 지정한 뷰만 표시
+function showMainView(viewId) {
+  var views = ['chatView', 'historyView', 'boardView', 'harnessGalleryView', 'adminSettingsView', 'landingView'];
+  views.forEach(function(id) {
+    var el = document.getElementById(id);
+    if(el) el.style.display = 'none';
+  });
+  var target = document.getElementById(viewId);
+  if(target) target.style.display = 'flex';
+  // 네비 active 해제
+  var nc = document.getElementById('navChat');
+  var nh = document.getElementById('navHistory');
+  var nb = document.getElementById('navBoard');
+  if(nc) nc.classList.remove('active');
+  if(nh) nh.classList.remove('active');
+  if(nb) nb.classList.remove('active');
+  isViewingHistory = true;
+}
+
 const GOOGLE_CLIENT_ID = '877998748218-emlbeacavipfdl1od8k61b4034on29n3.apps.googleusercontent.com';
 
 // 구글 OAuth 2.0 로그인 (Implicit Flow)
@@ -275,7 +294,7 @@ async function handleSend() {
   let finalMessage = text;
   if (selectedHarness) {
     const lines = selectedHarness.content.split('\n').filter(l => l.trim()).map(l => '- ' + l.trim()).join('\n');
-    finalMessage = `${text}\n\n[하네스:${selectedHarness.title}]\n${lines}`;
+    finalMessage = text + '\n\n[하네스:' + selectedHarness.title + ']\n' + lines;
     selectedHarness = null;
     const indicator = document.getElementById('harnessIndicator');
     if(indicator) indicator.remove();
@@ -668,12 +687,28 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- 관리자 모달 이벤트 연결 ---
+  // --- 관리자 설정 우측 패널 연결 ---
   const adminMenu = document.getElementById('adminSettingMenu');
   if(adminMenu) {
     adminMenu.addEventListener('click', () => {
-      document.getElementById('adminModal').style.display = 'flex';
+      // 모든 뷰 숨기고 관리자 설정 뷰 표시
+      showMainView('adminSettingsView');
       loadAdminData();
+      document.getElementById('userMenuPopup').classList.remove('show');
+    });
+  }
+
+  // --- 하네스 설정 메뉴 연결 ---
+  const harnessMenu = document.getElementById('harnessSettingMenu');
+  if(harnessMenu) {
+    harnessMenu.addEventListener('click', () => {
+      showMainView('harnessGalleryView');
+      var addBtn = document.getElementById('addHarnessBtn');
+      if(addBtn && window.currentUserRole === 'ADMIN') {
+        addBtn.style.display = 'block';
+        addBtn.onclick = function() { document.getElementById('harnessCreateForm').style.display = 'block'; };
+      }
+      loadHarnessGallery();
       document.getElementById('userMenuPopup').classList.remove('show');
     });
   }
@@ -693,6 +728,8 @@ async function initUserBackend(userInfo) {
       if(data.user.role === 'ADMIN') {
         const adminMenu = document.getElementById('adminSettingMenu');
         if(adminMenu) adminMenu.style.display = 'flex';
+        const harnessMenu = document.getElementById('harnessSettingMenu');
+        if(harnessMenu) harnessMenu.style.display = 'flex';
       }
       fetchMyRooms(userInfo.email);
     }
@@ -902,7 +939,7 @@ async function loadHarnessGallery() {
         var color = colors[h.id % colors.length];
         var badge = isAdmin ? '<span style="position:absolute;top:8px;right:8px;font-size:0.7rem;padding:2px 6px;border-radius:4px;background:'+(h.is_visible?'rgba(16,185,129,0.2)':'rgba(239,68,68,0.2)')+';color:'+(h.is_visible?'#10b981':'#ef4444')+';">'+(h.is_visible?'노출':'숨김')+'</span>' : '';
         var btns = isAdmin ? '<div style="display:flex;gap:6px;margin-top:12px;border-top:1px solid var(--border-color);padding-top:10px;"><button onclick="event.stopPropagation();window.openHarnessEdit('+h.id+')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:#f59e0b;cursor:pointer;font-size:0.8rem;">수정</button><button onclick="event.stopPropagation();window.toggleHarnessVisibility('+h.id+')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:var(--text-muted);cursor:pointer;font-size:0.8rem;">'+(h.is_visible?'숨기기':'노출')+'</button><button onclick="event.stopPropagation();window.deleteHarness('+h.id+')" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#ef4444;cursor:pointer;font-size:0.8rem;">삭제</button></div>' : '';
-        return '<div class="harness-card" data-id="'+h.id+'" data-visible="'+h.is_visible+'" style="position:relative;padding:20px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-sidebar);cursor:pointer;transition:all 0.2s;overflow:hidden;">'+badge+'<div style="width:48px;height:48px;border-radius:12px;background:'+color+'18;display:flex;align-items:center;justify-content:center;margin-bottom:14px;"><iconify-icon icon="lucide:zap" style="font-size:1.4rem;color:'+color+';"></iconify-icon></div><div style="font-weight:600;font-size:1rem;margin-bottom:6px;">'+h.title+'</div><div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">'+h.content+'</div>'+btns+'</div>';
+        return '<div class="harness-card" data-id="'+h.id+'" data-visible="'+h.is_visible+'" style="position:relative;padding:20px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-sidebar);cursor:pointer;transition:all 0.2s;overflow:hidden;">'+badge+'<div style="width:48px;height:48px;border-radius:12px;background:'+color+'18;display:flex;align-items:center;justify-content:center;margin-bottom:14px;"><iconify-icon icon="lucide:zap" style="font-size:1.4rem;color:'+color+';"></iconify-icon></div><div style="font-weight:600;font-size:1rem;margin-bottom:6px;">'+h.title+'</div><div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;">'+h.content+'</div>'+btns+'</div>';
       }).join('');
       grid.querySelectorAll('.harness-card').forEach(function(card) {
         card.addEventListener('click', function() {

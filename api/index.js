@@ -216,10 +216,19 @@ app.post('/api/chat', async (req, res) => {
 
     if (webhookUrl) {
       try {
+          let webhookMsg = message;
+          if (message.startsWith('[AUDIO]')) {
+            const parts = message.split('|');
+            if (parts.length >= 3) {
+              webhookMsg = parts.slice(2).join('|').trim();
+              if(!webhookMsg) webhookMsg = "(음성 메시지에 포함된 텍스트가 없습니다.)";
+            }
+          }
+
         await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, room_id, sender_email: senderEmail })
+          body: JSON.stringify({ message: webhookMsg, room_id, sender_email: senderEmail })
         });
         return res.json({ success: true, forwarded: true });
       } catch (err) {

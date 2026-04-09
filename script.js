@@ -16,6 +16,23 @@ let popupRoomName = '';
 
 function renderPlainText(text) {
   if (!text) return '';
+  if (text.startsWith('[AUDIO]')) {
+    const parts = text.split('|');
+    if (parts.length >= 3) {
+      const audioUrl = parts[1];
+      const actualText = parts.slice(2).join('|');
+      let html = `<audio controls src="${audioUrl}" style="max-width:240px; margin-bottom:8px; display:block;"></audio>`;
+      if (actualText && actualText.trim() !== '') {
+        html += `<div>` + actualText.split('\n').map(line => {
+          const span = document.createElement('span');
+          span.textContent = line;
+          return span.outerHTML;
+        }).join('<br/>') + `</div>`;
+      }
+      return html;
+    }
+  }
+
   return text.split('\n').map(line => {
     const span = document.createElement('span');
     span.textContent = line;
@@ -525,9 +542,140 @@ async function handleSend() {
     // POST 직후 즉각 1회 동기화
     syncChats();
   } catch (err) {
+  } catch (err) {
     console.error(err);
   }
 }
+
+// --- 음성 녹음 및 STT 로직 시작 ---
+let isMicRecording = false;
+let mediaRecorder = null;
+let audioChunks = [];
+let voiceRecognitionInstance = null;
+let recognizedTextBuffer = '';
+
+async function toggleMicrophone() {
+  if (isMicRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    recognizedTextBuffer = '';
+    
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => {
+      if(e.data.size > 0) audioChunks.push(e.data);
+    };
+    
+    mediaRecorder.onstop = async () => {
+      const mimeType = mediaRecorder.mimeType || 'audio/webm';
+      const audioBlob = new Blob(audioChunks, { type: mimeType });
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      reader.onloadend = async () => {
+        const base64Audio = reader.result;
+        await submitVoiceMessage(base64Audio, recognizedTextBuffer);
+      };
+      stream.getTracks().forEach(track => track.stop());
+    };
+    
+    mediaRecorder.start();
+    isMicRecording = true;
+    if(micBtn) micBtn.style.color = '#ef4444'; // 녹음 중 빨간색 표시
+    
+    // AiON 채팅방(currentRoomId===null)일 때만 STT 연동
+    if (currentRoomId === null && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      const SpeechReg = window.SpeechRecognition || window.webkitSpeechRecognition;
+      voiceRecognitionInstance = new SpeechReg();
+      voiceRecognitionInstance.lang = 'ko-KR';
+      voiceRecognitionInstance.continuous = true;
+      voiceRecognitionInstance.interimResults = false;
+      
+      voiceRecognitionInstance.onresult = (event) => {
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            recognizedTextBuffer += event.results[i][0].transcript + ' ';
+          }
+        }
+      };
+      
+      voiceRecognitionInstance.onerror = (e) => console.log('STT Error', e);
+      voiceRecognitionInstance.start();
+    }
+  } catch(e) {
+    console.error('🎤 Mic access error:', e);
+    alert('마이크 접근 불가능 또는 권한이 거부되었습니다.');
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  if (voiceRecognitionInstance) {
+    voiceRecognitionInstance.stop();
+    voiceRecognitionInstance = null;
+  }
+  isMicRecording = false;
+  if(micBtn) micBtn.style.color = ''; // 색상 원복
+}
+
+async function submitVoiceMessage(audioDataUrl, sttText) {
+  let finalMessage = '';
+  if (currentRoomId === null) {
+    finalMessage = sttText.trim() ? sttText.trim() : '[음성만 녹음됨]';
+  } else {
+    finalMessage = '(그룹채팅 음성메시지)'; 
+  }
+  
+  const payloadMessage = `[AUDIO]${audioDataUrl}|${finalMessage}`;
+  
+  // UI 즉각 반영 (낙관적 렌더링)
+  const myEmail = getCurrentUserEmail();
+  let userName = '나';
+  try {
+    const uData = localStorage.getItem('agentOn_user');
+    if(uData) userName = JSON.parse(uData).name;
+  }catch(e){}
+  
+  const newMsg = document.createElement('div');
+  newMsg.className = 'message user';
+  
+  // 아바타나 헤더 등 최소 표시 (간단히 오른쪽 정렬)
+  let innerHtml = `<div style="display:flex; flex-direction:column; align-items:flex-end;">`;
+  innerHtml += `<div style="font-size:0.8rem; font-weight:600; color:var(--text-high); margin-bottom:4px;">나(${userName})</div>`;
+  innerHtml += `<div class="message-content" style="display:flex; flex-direction:column; gap:8px;">`;
+  innerHtml += `<audio controls src="${audioDataUrl}" style="max-width:240px; border-radius:12px;"></audio>`;
+  if(finalMessage) {
+    innerHtml += `<div style="opacity:0.9;">${renderPlainText(finalMessage.replace('[AUDIO]', ''))}</div>`;
+  }
+  innerHtml += `</div></div>`;
+  
+  newMsg.innerHTML = innerHtml;
+  messagesEl.appendChild(newMsg);
+  setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 50);
+
+  // DB 전송
+  try {
+    await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Email': myEmail },
+      body: JSON.stringify({ message: payloadMessage, room_id: currentRoomId })
+    });
+    syncChats();
+  } catch (err) {
+    console.error('Audio message upload failed:', err);
+  }
+}
+// --- 음성 녹음 로직 종료 ---
+
+if(micBtn) micBtn.addEventListener('click', toggleMicrophone);
 
 sendBtn.addEventListener('click', handleSend);
 inputEl.addEventListener('keypress', (e) => {

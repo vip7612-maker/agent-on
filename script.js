@@ -497,8 +497,20 @@ inputEl.addEventListener('paste', (e) => {
   document.execCommand('insertText', false, text);
 });
 inputEl.addEventListener('focus', () => {
-  setTimeout(() => window.scrollTo(0, 0), 50);
+  setTimeout(() => {
+    window.scrollTo(0, 0);
+    document.body.scrollTop = 0;
+  }, 50);
 });
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    if (document.activeElement === inputEl) {
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+    }
+  });
+}
 
 if (menuToggle && sidebar) {
   menuToggle.addEventListener('click', () => {

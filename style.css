@@ -449,3 +449,76 @@ html, body {
 .sidebar.collapsed .user-profile {
   justify-content: center;
 }
+
+.sidebar.collapsed .user-profile-icons {
+  display: none !important;
+}
+
+/* 사용자 프로필 확장 팝업 메뉴 */
+.user-menu-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 16px;
+  width: calc(100% - 32px);
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 1000;
+}
+
+.user-menu-popup.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.menu-email {
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.menu-divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 6px 0;
+}
+
+.menu-req-item {
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--text-high);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.menu-req-item span {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menu-req-item iconify-icon {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+}
+
+.menu-req-item:hover {
+  background-color: rgba(255,255,255,0.06);
+}
+
+.menu-req-item .shortcut {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}

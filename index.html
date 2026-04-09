@@ -29,18 +29,64 @@
       </div>
       <div class="sidebar-nav">
         <div class="nav-item active" id="navChat"><iconify-icon icon="mdi:message-outline"></iconify-icon> <span class="nav-label">채팅</span></div>
-        <div class="nav-item" id="navHistory"><iconify-icon icon="mdi:history"></iconify-icon> <span class="nav-label">History</span></div>
+        <div class="nav-item" id="navHistory"><iconify-icon icon="mdi:history"></iconify-icon> <span class="nav-label">지난 채팅</span></div>
         <div class="nav-item" id="navBoard"><iconify-icon icon="mdi:text-box-check-outline"></iconify-icon> <span class="nav-label">Board</span></div>
       </div>
-      <div class="sidebar-footer">
+      <div class="sidebar-footer" style="position: relative;">
         <button class="google-btn" id="googleLoginBtn">
           <iconify-icon icon="logos:google-icon"></iconify-icon> <span class="nav-label">구글로 로그인</span>
         </button>
-        <div class="user-profile" id="userProfile" style="display: none;">
-          <div class="avatar">이</div>
-          <div class="user-info">
-            <span class="user-name" style="font-weight: 600; font-size: 0.95rem;">이경진</span>
-            <span class="user-title" style="font-size: 0.8rem; color: var(--text-muted);">교장님</span>
+        <div class="user-profile" id="userProfile" style="display: none; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="avatar" style="width: 36px; height: 36px; border-radius: 50%; background: var(--bg-input); display:flex; align-items:center; justify-content:center; color:var(--text-high); overflow:hidden;"></div>
+            <div class="user-info" style="display: flex; flex-direction: column;">
+              <span class="user-name" style="font-weight: 500; font-size: 0.95rem;">이경진</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted); margin-top:2px;">Pro 요금제</span>
+            </div>
+          </div>
+          <div class="user-profile-icons" style="display: flex; align-items: center; gap: 6px; color: var(--text-muted);">
+            <iconify-icon icon="lucide:download" style="font-size: 0.95rem; padding: 4px; border: 1px solid var(--border-color); border-radius: 6px;"></iconify-icon>
+            <iconify-icon icon="lucide:chevrons-up-down" style="font-size: 1rem;"></iconify-icon>
+          </div>
+        </div>
+
+        <!-- 팝업 메뉴 UI -->
+        <div class="user-menu-popup" id="userMenuPopup">
+          <div class="menu-email" id="menuEmail">vip7612@gmail.com</div>
+          <div class="menu-divider"></div>
+          
+          <div class="menu-req-item">
+            <span><iconify-icon icon="lucide:settings"></iconify-icon> 설정</span>
+            <span class="shortcut">⌘,</span>
+          </div>
+          <div class="menu-req-item">
+            <span><iconify-icon icon="lucide:globe"></iconify-icon> 언어</span>
+            <iconify-icon icon="lucide:chevron-right"></iconify-icon>
+          </div>
+          <div class="menu-req-item">
+            <span><iconify-icon icon="lucide:help-circle"></iconify-icon> 도움 받기</span>
+          </div>
+          
+          <div class="menu-divider"></div>
+          
+          <div class="menu-req-item">
+            <span><iconify-icon icon="lucide:arrow-up-circle"></iconify-icon> 요금제 업그레이드</span>
+          </div>
+          <div class="menu-req-item">
+            <span><iconify-icon icon="lucide:download"></iconify-icon> 앱 및 확장 프로그램 받기</span>
+          </div>
+          <div class="menu-req-item">
+            <span><iconify-icon icon="lucide:gift"></iconify-icon> Agent ONAi 선물하기</span>
+          </div>
+          <div class="menu-req-item">
+            <span><iconify-icon icon="lucide:info"></iconify-icon> 자세히 알아보기</span>
+            <iconify-icon icon="lucide:chevron-right"></iconify-icon>
+          </div>
+          
+          <div class="menu-divider"></div>
+          
+          <div class="menu-req-item" id="logoutBtn">
+            <span><iconify-icon icon="lucide:log-out"></iconify-icon> 로그아웃</span>
           </div>
         </div>
       </div>

@@ -79,6 +79,12 @@ async function checkGoogleLogin() {
         }
         userProfile.querySelector('.user-name').textContent = userInfo.name || '이경진';
         
+        // 이메일 팝업 메뉴에 삽입
+        if (userInfo.email) {
+          const menuEmail = document.getElementById('menuEmail');
+          if (menuEmail) menuEmail.textContent = userInfo.email;
+        }
+        
         // 동적 인사말 호칭도 업데이트
         const greetingTitle = document.getElementById('welcomeTitle');
         if (greetingTitle && greetingTitle.textContent.includes('교장님')) {
@@ -456,5 +462,29 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       }
     });
+  }
+
+  // 사용자 마이페이지/설정 팝업 제어
+  const userProfile = document.getElementById('userProfile');
+  const userMenuPopup = document.getElementById('userMenuPopup');
+  if (userProfile && userMenuPopup) {
+    userProfile.addEventListener('click', (e) => {
+      e.stopPropagation();
+      userMenuPopup.classList.toggle('show');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!userMenuPopup.contains(e.target) && !userProfile.contains(e.target)) {
+        userMenuPopup.classList.remove('show');
+      }
+    });
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        location.reload(); // 로그아웃을 위해 새로고침
+      });
+    }
   }
 });

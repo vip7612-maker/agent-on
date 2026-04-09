@@ -207,9 +207,12 @@ async function syncChats() {
       
       // 기존 메시지들 비우기
       messagesEl.innerHTML = '';
-      if (currentMsgCount > 0 && welcomeScreen.style.display !== 'none') {
+      if (currentMsgCount > 0) {
         welcomeScreen.style.display = 'none';
         messagesEl.style.display = 'block';
+      } else {
+        welcomeScreen.style.display = 'flex';
+        messagesEl.style.display = 'none';
       }
 
       // DB의 최신 메시지 전체 렌더링
@@ -497,8 +500,8 @@ if (navChat && navHistory && navBoard) {
        currentMsgCount = -1; // 강제 새로고침
        
        // 타이틀 기본값 변경
-       const titleEl = document.querySelector('.welcome-title');
-       if(titleEl) titleEl.innerText = '무엇을 도와드릴까요?';
+       const subTitleEl = document.querySelector('.welcome-subtitle');
+       if(subTitleEl) subTitleEl.innerText = '무엇을 도와드릴까요?';
        
        syncChats();
     } else {
@@ -776,9 +779,9 @@ async function fetchMyRooms(email) {
             document.getElementById('navChat').classList.remove('active');
             btn.classList.add('active');
             
-            // 환영 문구/타이틀 변경 (선택사항)
-            const titleEl = document.querySelector('.welcome-title');
-            if(titleEl) titleEl.innerText = btn.innerText + ' 채팅방에 오신 것을 환영합니다';
+            // 환영 문구 변경
+            const subTitleEl = document.querySelector('.welcome-subtitle');
+            if(subTitleEl) subTitleEl.innerText = btn.innerText.trim() + ' 채팅방에 오신 것을 환영합니다';
             
             syncChats();
           });

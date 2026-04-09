@@ -194,7 +194,8 @@ app.post('/api/chat', async (req, res) => {
 
     // 1. 외부 에이전트(다른 맥미니의 안티그래비티) 연동
     const settingRes = await db.execute({ sql: "SELECT value FROM settings WHERE key = 'ANTIGRAVITY_WEBHOOK_URL'" });
-    const webhookUrl = settingRes.rows.length > 0 && settingRes.rows[0].value ? settingRes.rows[0].value : process.env.ANTIGRAVITY_WEBHOOK_URL;
+    // 사용자가 강제로 입력을 요구했으므로 하드코딩된 주소를 최우선으로 적용 (또는 기본값으로 강력하게 지정)
+    const webhookUrl = (settingRes.rows.length > 0 && settingRes.rows[0].value) ? settingRes.rows[0].value : 'https://defensive-females-given-send.trycloudflare.com/webhook';
 
     if (webhookUrl) {
       try {
@@ -203,33 +204,16 @@ app.post('/api/chat', async (req, res) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message, room_id, sender_email: senderEmail })
         });
-        // 전송에 성공하면 백엔드 로직 종료 (결과는 나중에 안티그래비티가 웹훅으로 회신)
         return res.json({ success: true, forwarded: true });
       } catch (err) {
         console.error('[Webhook Outbound Error]:', err.message);
-        // 실패 시 Gemini 로 폴백 처리
-      }
-    }
-
-    // 2. AiON agent (Gemini) 연동 로직 (안티그래비티가 오프라인이거나 미설정일 때)
-    let botResponse = '';
-
-    if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'DUMMY_KEY') {
-      try {
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: `당신의 이름은 'AiON agent'이며, 친절하고 다재다능한 AI 비서입니다. 사용자 메시지: ${message}`
-        });
-        botResponse = response.text;
-      } catch (apiErr) {
-        console.error('[Gemini API Error]:', apiErr.message);
-        botResponse = `AiON agent API 연결 중 오류가 발생했습니다. (${apiErr.message})`;
+        botResponse = `[시스템 에러] 안티그래비티 에이전트와 통신할 수 없습니다. 로컬 서버(맥미니)가 꺼져 있거나 Cloudflare Tunnel 주소가 유효하지 않습니다.`;
       }
     } else {
-      botResponse = `[AiON agent] 알림: 다른 맥미니의 안티그래비티 연동 URL(.env 의 ANTIGRAVITY_WEBHOOK_URL) 이 없습니다. 연결을 확인해 주세요. (메시지: ${message})`;
+      botResponse = `[시스템 알림] 안티그래비티 웹훅 주소가 설정되지 않았습니다. 관리자 화면에서 맥미니 웹훅 주소를 입력해 주세요.`;
     }
     
-    // AI 응답 저장 (발신자와 동일한 사용자에게 귀속)
+    // 에러/알림 응답 저장 (발신자와 동일한 사용자에게 귀속)
     await db.execute({
       sql: 'INSERT INTO messages (role, content, session_date, room_id, sender_email) VALUES (?, ?, ?, ?, ?)',
       args: ['bot', botResponse, getGlobalSessionDate(), null, senderEmail]

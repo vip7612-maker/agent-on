@@ -57,12 +57,13 @@ function showMainView(viewId) {
 const GOOGLE_CLIENT_ID = '877998748218-emlbeacavipfdl1od8k61b4034on29n3.apps.googleusercontent.com';
 
 // 구글 OAuth 2.0 로그인 (Implicit Flow)
-function oauthSignIn() {
+function oauthSignIn(event) {
+  if (event) {
+    event.preventDefault();
+  }
+  console.log("oauthSignIn called!");
   const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
-  const form = document.createElement('form');
-  form.setAttribute('method', 'GET');
-  form.setAttribute('action', oauth2Endpoint);
-
+  
   const params = {
     'client_id': GOOGLE_CLIENT_ID,
     'redirect_uri': window.location.origin, // 예: https://agent-on.vercel.app
@@ -75,7 +76,7 @@ function oauthSignIn() {
   const queryString = new URLSearchParams(params).toString();
   const authUrl = `${oauth2Endpoint}?${queryString}`;
   console.log("Redirecting to:", authUrl);
-  window.location.href = authUrl;
+  window.location.assign(authUrl);
 }
 
 // 구글 토큰 추출 및 사용자 정보 로드

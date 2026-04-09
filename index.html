@@ -134,7 +134,12 @@
       </div>
 
       <!-- 채팅 뷰 (기본적으로 숨김) -->
-      <div class="chat-container" id="chatView" style="display: none;">
+      <div class="chat-container" id="chatView" style="display: none; position: relative;">
+        <!-- 그룹챗 식별 헤더 -->
+        <div id="chatRoomHeader" style="display:none; width:100%; max-width:800px; padding:12px 24px; box-sizing:border-box; border-bottom:1px solid var(--border-color); background:var(--bg-main); align-items:center; gap:8px;">
+          <iconify-icon icon="lucide:hash" style="color:var(--text-muted); font-size:1.2rem;"></iconify-icon>
+          <span id="chatRoomTitle" style="font-weight:600; font-size:1rem; color:var(--text-high);">그룹챗1</span>
+        </div>
         <!-- 대화가 없을 때 나타나는 초기 환영 화면 -->
         <div class="welcome-screen" id="welcomeScreen">
           <h1 class="welcome-title" id="welcomeTitle">🌙 좋은 밤입니다, 교장님</h1>

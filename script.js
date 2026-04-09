@@ -214,6 +214,16 @@ async function syncChats() {
         welcomeScreen.style.display = 'flex';
         messagesEl.style.display = 'none';
       }
+      
+      // 방 헤더 UI 업데이트
+      const chatRoomHeader = document.getElementById('chatRoomHeader');
+      if (chatRoomHeader) {
+        if (currentRoomId && currentMsgCount > 0) {
+          chatRoomHeader.style.display = 'flex';
+        } else {
+          chatRoomHeader.style.display = 'none';
+        }
+      }
 
       // DB의 최신 메시지 전체 렌더링
       data.messages.forEach(msg => {
@@ -502,6 +512,9 @@ if (navChat && navHistory && navBoard) {
        // 타이틀 기본값 변경
        const subTitleEl = document.querySelector('.welcome-subtitle');
        if(subTitleEl) subTitleEl.innerText = '무엇을 도와드릴까요?';
+       
+       const chatRoomHeader = document.getElementById('chatRoomHeader');
+       if(chatRoomHeader) chatRoomHeader.style.display = 'none';
        
        syncChats();
     } else {
@@ -799,6 +812,11 @@ async function fetchMyRooms(email) {
             // 환영 문구 변경
             const subTitleEl = document.querySelector('.welcome-subtitle');
             if(subTitleEl) subTitleEl.innerText = btn.innerText.trim() + ' 채팅방에 오신 것을 환영합니다';
+            
+            const chatRoomTitle = document.getElementById('chatRoomTitle');
+            if(chatRoomTitle) chatRoomTitle.innerText = btn.innerText.trim();
+            const chatRoomHeader = document.getElementById('chatRoomHeader');
+            if(chatRoomHeader) chatRoomHeader.style.display = 'none'; // syncChats에서 메시지 있으면 보여줌
             
             syncChats();
           });
@@ -1278,3 +1296,7 @@ window.saveAutomationEdit = async function() {
   document.getElementById('automationEditModal').style.display = 'none';
   loadAutomationGallery();
 };
+
+// 초기화
+initHarnessPopup();
+

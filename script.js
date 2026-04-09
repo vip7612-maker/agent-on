@@ -862,6 +862,19 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 관리자 서브 메뉴 탭 전환
+  document.querySelectorAll('.admin-nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      // 활성 메뉴 전환
+      document.querySelectorAll('.admin-nav-item').forEach(n => n.classList.remove('active'));
+      item.classList.add('active');
+      // 패널 전환
+      document.querySelectorAll('.admin-panel').forEach(p => p.style.display = 'none');
+      const target = document.getElementById(item.dataset.panel);
+      if(target) target.style.display = 'flex';
+    });
+  });
+
   // --- 계정 설정 연결 ---
   const accountMenu = document.getElementById('accountSettingMenu');
   if(accountMenu) {
@@ -1094,70 +1107,85 @@ async function loadAdminData() {
     }
   } catch(e) { console.error(e); }
 
-  // 2. 그룹챗 목록 및 멤버 관리
+  // 2. 그룹챗 관리
   try {
     const roomRes = await fetch('/api/admin/rooms', { headers: {'User-Email': email} });
     const roomData = await roomRes.json();
     const roomsEl = document.getElementById('adminRoomsList');
-    if(!roomsEl) return;
+    const membersEl = document.getElementById('adminMembersList');
     
-    // 추가 가능한 사용자 = APPROVED 또는 ADMIN
     const eligibleUsers = allUsers.filter(u => u.role === 'APPROVED' || u.role === 'ADMIN');
     
     if(roomData.success && roomData.rooms.length > 0) {
-      roomsEl.innerHTML = roomData.rooms.map(room => {
-        const roomMembers = roomData.members.filter(m => m.room_id === room.id);
-        const existingEmails = roomMembers.map(m => m.user_email);
-        const memberTags = roomMembers.map(m => {
-          const usr = allUsers.find(u => u.email === m.user_email);
-          const displayName = usr ? usr.name : m.user_email.split('@')[0];
-          return `<div style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:16px; background:var(--bg-input); font-size:0.8rem; border:1px solid var(--border-color);">
-            <span>${displayName}</span>
-            <button onclick="event.stopPropagation(); window.removeMember(${room.id}, '${m.user_email}')" style="background:none; border:none; cursor:pointer; color:#ef4444; font-size:0.9rem; padding:0; line-height:1;" title="삭제">×</button>
+      // 패널2: 그룹챗 리스트 (이름 변경 / 삭제)
+      if(roomsEl) {
+        roomsEl.innerHTML = roomData.rooms.map(room => {
+          const cnt = roomData.members.filter(m => m.room_id === room.id).length;
+          return `<div style="padding:14px 16px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-sidebar); display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:10px; flex:1;">
+              <iconify-icon icon="lucide:hash" style="color:#8b5cf6; font-size:1.1rem; flex-shrink:0;"></iconify-icon>
+              <input type="text" value="${room.name}" id="roomName_${room.id}" style="font-weight:600; font-size:0.95rem; background:transparent; border:none; color:var(--text-high); border-bottom:1px solid transparent; transition:border-color 0.2s; padding:2px 0; flex:1;" onfocus="this.style.borderBottomColor='#8b5cf6'" onblur="this.style.borderBottomColor='transparent'" />
+              <span style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap;">${cnt}명</span>
+            </div>
+            <div style="display:flex; gap:6px; margin-left:12px;">
+              <button onclick="window.renameRoom(${room.id})" style="padding:4px 10px; border-radius:6px; border:1px solid var(--border-color); background:transparent; color:#8b5cf6; cursor:pointer; font-size:0.8rem;">저장</button>
+              <button onclick="if(confirm('정말 삭제?')) window.deleteRoom(${room.id})" style="padding:4px 10px; border-radius:6px; border:1px solid rgba(239,68,68,0.3); background:transparent; color:#ef4444; cursor:pointer; font-size:0.8rem;">삭제</button>
+            </div>
+          </div>`;
+        }).join('');
+      }
+      
+      // 패널3: 멤버 관리 (각 방별 참여자 + 검색 추가)
+      if(membersEl) {
+        membersEl.innerHTML = roomData.rooms.map(room => {
+          const roomMembers = roomData.members.filter(m => m.room_id === room.id);
+          const existingEmails = roomMembers.map(m => m.user_email);
+          const memberRows = roomMembers.map(m => {
+            const usr = allUsers.find(u => u.email === m.user_email);
+            const displayName = usr ? usr.name : m.user_email.split('@')[0];
+            const initial = (displayName || '?').charAt(0);
+            return `<div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border-color);">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:30px; height:30px; border-radius:50%; background:rgba(139,92,246,0.15); display:flex; align-items:center; justify-content:center; color:#8b5cf6; font-weight:600; font-size:0.8rem;">${initial}</div>
+                <div>
+                  <div style="font-size:0.9rem; font-weight:500;">${displayName}</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted);">${m.user_email}</div>
+                </div>
+              </div>
+              <button onclick="window.removeMember(${room.id}, '${m.user_email}')" style="padding:3px 8px; border-radius:4px; border:1px solid rgba(239,68,68,0.3); background:transparent; color:#ef4444; cursor:pointer; font-size:0.75rem;">제거</button>
+            </div>`;
+          }).join('');
+          
+          return `<div style="padding:16px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-sidebar);">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+              <iconify-icon icon="lucide:hash" style="color:#8b5cf6;"></iconify-icon>
+              <span style="font-weight:600; font-size:1rem;">${room.name}</span>
+              <span style="font-size:0.8rem; color:var(--text-muted);">(${roomMembers.length}명)</span>
+            </div>
+            <div style="margin-bottom:12px;">${memberRows || '<div style="padding:8px 0; color:var(--text-muted); font-size:0.85rem;">참여자가 없습니다</div>'}</div>
+            <div style="position:relative;">
+              <input type="text" placeholder="이름 또는 이메일로 검색하여 추가" id="invite_${room.id}" autocomplete="off" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); font-size:0.85rem; box-sizing:border-box;" />
+              <div id="inviteDropdown_${room.id}" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:180px; overflow-y:auto; background:var(--bg-sidebar); border:1px solid var(--border-color); border-radius:0 0 8px 8px; z-index:10;"></div>
+            </div>
           </div>`;
         }).join('');
         
-        return `<div style="padding:16px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-main);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <iconify-icon icon="lucide:hash" style="color:#8b5cf6; font-size:1.1rem;"></iconify-icon>
-              <input type="text" value="${room.name}" id="roomName_${room.id}" style="font-weight:600; font-size:1rem; background:transparent; border:none; color:var(--text-high); border-bottom:1px solid transparent; transition:border-color 0.2s; padding:2px 0;" onfocus="this.style.borderBottomColor='#8b5cf6'" onblur="this.style.borderBottomColor='transparent'" />
-              <button onclick="window.renameRoom(${room.id})" style="padding:3px 8px; border-radius:4px; border:1px solid var(--border-color); background:transparent; color:#8b5cf6; cursor:pointer; font-size:0.75rem;">저장</button>
-            </div>
-            <button onclick="if(confirm('정말 이 그룹챗을 삭제하시겠습니까?')) window.deleteRoom(${room.id})" style="padding:4px 10px; border-radius:6px; border:1px solid rgba(239,68,68,0.3); background:transparent; color:#ef4444; cursor:pointer; font-size:0.8rem;">삭제</button>
-          </div>
-          <div style="margin-bottom:10px;">
-            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:6px;">참여자 (${roomMembers.length}명)</div>
-            <div style="display:flex; flex-wrap:wrap; gap:6px;">${memberTags || '<span style="font-size:0.85rem; color:var(--text-muted);">참여자가 없습니다</span>'}</div>
-          </div>
-          <div style="position:relative; margin-top:8px;">
-            <input type="text" placeholder="이름 또는 이메일로 검색하여 추가" id="invite_${room.id}" autocomplete="off" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); font-size:0.85rem; box-sizing:border-box;" />
-            <div id="inviteDropdown_${room.id}" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:180px; overflow-y:auto; background:var(--bg-sidebar); border:1px solid var(--border-color); border-radius:0 0 8px 8px; z-index:10;"></div>
-          </div>
-        </div>`;
-      }).join('');
-      
-      // 각 방의 검색 입력에 이벤트 바인딩
-      roomData.rooms.forEach(room => {
-        const input = document.getElementById('invite_' + room.id);
-        const dropdown = document.getElementById('inviteDropdown_' + room.id);
-        if(!input || !dropdown) return;
-        
-        const roomMembers = roomData.members.filter(m => m.room_id === room.id);
-        const existingEmails = roomMembers.map(m => m.user_email);
-        
-        input.addEventListener('focus', () => renderDropdown(room.id, input.value, eligibleUsers, existingEmails));
-        input.addEventListener('input', () => renderDropdown(room.id, input.value, eligibleUsers, existingEmails));
-        
-        // 바깥 클릭 시 닫기
-        document.addEventListener('click', (e) => {
-          if(!input.contains(e.target) && !dropdown.contains(e.target)) {
-            dropdown.style.display = 'none';
-          }
+        // 검색 이벤트 바인딩
+        roomData.rooms.forEach(room => {
+          const input = document.getElementById('invite_' + room.id);
+          const dropdown = document.getElementById('inviteDropdown_' + room.id);
+          if(!input || !dropdown) return;
+          const existingEmails = roomData.members.filter(m => m.room_id === room.id).map(m => m.user_email);
+          input.addEventListener('focus', () => renderDropdown(room.id, input.value, eligibleUsers, existingEmails));
+          input.addEventListener('input', () => renderDropdown(room.id, input.value, eligibleUsers, existingEmails));
+          document.addEventListener('click', (e) => {
+            if(!input.contains(e.target) && !dropdown.contains(e.target)) dropdown.style.display = 'none';
+          });
         });
-      });
+      }
     } else {
-      roomsEl.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.9rem;">개설된 그룹챗이 없습니다.</div>';
+      if(roomsEl) roomsEl.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.9rem;">개설된 그룹챗이 없습니다.</div>';
+      if(membersEl) membersEl.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.9rem;">그룹챗을 먼저 개설해주세요.</div>';
     }
   } catch(e) { console.error(e); }
 }

@@ -351,7 +351,7 @@ async function syncChats() {
         if (currentRoomId) {
           contentDiv.style.lineHeight = '1.4';
           contentDiv.style.marginTop = '-2px';
-          if (msg.sender_email === myEmail) {
+          if (msg.sender_email === getCurrentUserEmail()) {
             contentDiv.style.paddingRight = '8px';
           } else {
             contentDiv.style.paddingLeft = '36px'; // 로고(28px) + gap(8px)

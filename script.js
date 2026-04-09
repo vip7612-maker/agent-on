@@ -403,22 +403,65 @@ if (navChat && navHistory && navBoard) {
         boardList.innerHTML = '<div style="color:var(--text-muted); text-align:center;">아직 저장된 보드 항목이 없습니다. (답변 하단의 핀 아이콘 클릭)</div>';
         return;
       }
+      
+      const now = new Date();
+      const recentClips = [];
+      const pastClips = [];
+
       data.messages.forEach(msg => {
+        let dateObj = new Date();
+        if (msg.created_at) {
+          dateObj = new Date(msg.created_at.replace(' ', 'T') + 'Z');
+        }
+        const diffDays = Math.ceil(Math.abs(now - dateObj) / (1000 * 60 * 60 * 24));
+        if (diffDays > 7) pastClips.push(msg);
+        else recentClips.push(msg);
+      });
+
+      const createBoardDOM = (msg) => {
         const div = document.createElement('div');
-        div.style.cssText = "background: var(--bg-input); border-radius:12px; padding: 20px; border:1px solid var(--border-color);";
+        div.style.cssText = "background: var(--bg-input); border-radius:12px; padding: 20px; border:1px solid var(--border-color); position: relative;";
+        
+        const delBtn = document.createElement('button');
+        delBtn.className = 'icon-btn';
+        delBtn.style.cssText = "position: absolute; top: 16px; right: 16px; color: var(--text-muted); font-size: 1.2rem; padding: 4px; box-shadow: none; border: none; background: transparent;";
+        delBtn.innerHTML = '<iconify-icon icon="lucide:trash-2"></iconify-icon>';
+        delBtn.onclick = async () => {
+           if(confirm('이 답변을 보드에서 제거하시겠습니까?')) {
+             await fetch('/api/board/' + msg.id, { method: 'PUT' });
+             navBoard.click(); // 삭제 후 보드 자동 새로고침
+           }
+        };
+
         const meta = document.createElement('div');
-        meta.style.cssText = "font-size:0.85rem; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;";
-        meta.innerHTML = `
-          <span><iconify-icon icon="lucide:pin" style="color:var(--text-high); vertical-align:middle;"></iconify-icon> ${msg.session_date || '오늘'}</span>
-        `;
+        meta.style.cssText = "font-size:0.85rem; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; padding-right: 32px;";
+        meta.innerHTML = `<span><iconify-icon icon="lucide:pin" style="color:var(--text-high); vertical-align:middle;"></iconify-icon> ${msg.session_date || '오늘'}</span>`;
+        
         const content = document.createElement('div');
         content.style.lineHeight = "1.6";
         content.textContent = msg.content;
         
+        div.appendChild(delBtn);
         div.appendChild(meta);
         div.appendChild(content);
-        boardList.appendChild(div);
-      });
+        return div;
+      };
+
+      if (recentClips.length > 0) {
+        const h3 = document.createElement('h3');
+        h3.style.cssText = "font-size: 1.05rem; color: var(--text-high); margin: 0 0 12px 0; font-weight: 500;";
+        h3.textContent = "최신 클립";
+        boardList.appendChild(h3);
+        recentClips.forEach(msg => boardList.appendChild(createBoardDOM(msg)));
+      }
+
+      if (pastClips.length > 0) {
+        const h3 = document.createElement('h3');
+        h3.style.cssText = "font-size: 1.05rem; color: var(--text-muted); margin: 24px 0 12px 0; font-weight: 500;";
+        h3.textContent = "지난 클립 (1주일 경과)";
+        boardList.appendChild(h3);
+        pastClips.forEach(msg => boardList.appendChild(createBoardDOM(msg)));
+      }
     } catch(err) { console.error(err); }
   });
 }

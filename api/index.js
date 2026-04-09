@@ -137,6 +137,8 @@ async function initDb() {
     try { await db.execute('ALTER TABLE messages ADD COLUMN is_pinned INTEGER DEFAULT 0'); } catch(e){}
     try { await db.execute('ALTER TABLE messages ADD COLUMN room_id INTEGER NULL'); } catch(e){}
     try { await db.execute('ALTER TABLE messages ADD COLUMN sender_email TEXT NULL'); } catch(e){}
+    // 기존 데이터 마이그레이션: sender_email이 없는 ONAi 채팅 메시지를 최초 관리자 계정으로 귀속
+    try { await db.execute(`UPDATE messages SET sender_email = 'vip7612@gmail.com' WHERE sender_email IS NULL AND room_id IS NULL`); } catch(e){}
 
     console.log('[Turso DB] 모든 테이블 준비 및 마이그레이션 완료.');
   } catch (err) {
@@ -145,22 +147,27 @@ async function initDb() {
 }
 initDb();
 
-// 기존 대화 이력 가져오기 (room_id가 있으면 해당 룸 전체, 없으면 개인의 오늘 세션)
+// 기존 대화 이력 가져오기 (계정별 격리)
 app.get('/api/chat', async (req, res) => {
   try {
     const roomId = req.query.room_id || null;
+    const userEmail = req.headers['user-email'] || null;
     const sessionDate = getGlobalSessionDate();
     let result;
     if (roomId) {
+      // 그룹챗: 방 전체 메시지
       result = await db.execute({
         sql: 'SELECT * FROM messages WHERE room_id = ? ORDER BY id ASC',
         args: [roomId]
       });
-    } else {
+    } else if (userEmail) {
+      // ONAi 1:1 채팅: 해당 사용자의 메시지만
       result = await db.execute({
-        sql: 'SELECT * FROM messages WHERE session_date = ? AND room_id IS NULL ORDER BY id ASC',
-        args: [sessionDate]
+        sql: 'SELECT * FROM messages WHERE session_date = ? AND room_id IS NULL AND sender_email = ? ORDER BY id ASC',
+        args: [sessionDate, userEmail]
       });
+    } else {
+      result = { rows: [] };
     }
     res.json({ success: true, messages: result.rows });
   } catch (err) {
@@ -225,10 +232,10 @@ app.post('/api/chat', async (req, res) => {
       botResponse = `[Agent ONAi] 알림: 다른 맥미니의 안티그래비티 연동 URL(.env 의 ANTIGRAVITY_WEBHOOK_URL) 이 없습니다. 연결을 확인해 주세요. (메시지: ${message})`;
     }
     
-    // AI 응답 저장
+    // AI 응답 저장 (발신자와 동일한 사용자에게 귀속)
     await db.execute({
-      sql: 'INSERT INTO messages (role, content, session_date, room_id) VALUES (?, ?, ?, ?)',
-      args: ['bot', botResponse, getGlobalSessionDate(), null]
+      sql: 'INSERT INTO messages (role, content, session_date, room_id, sender_email) VALUES (?, ?, ?, ?, ?)',
+      args: ['bot', botResponse, getGlobalSessionDate(), null, senderEmail]
     });
 
     res.json({ success: true, reply: botResponse });
@@ -274,22 +281,24 @@ app.post('/api/chat/forward', async (req, res) => {
   }
 });
 
-// 과거 세션 리스트 불러오기 (History)
+// 과거 세션 리스트 불러오기 (History - 계정별 격리)
 app.get('/api/history', async (req, res) => {
   try {
     const todaySession = getGlobalSessionDate();
+    const userEmail = req.headers['user-email'] || null;
+    if (!userEmail) return res.json({ success: true, history: [] });
     const result = await db.execute({
       sql: `
         SELECT session_date, 
                MAX(created_at) as last_created,
-               (SELECT content FROM messages m2 WHERE m2.session_date = m1.session_date AND m2.role = 'user' ORDER BY id ASC LIMIT 1) as preview_content,
+               (SELECT content FROM messages m2 WHERE m2.session_date = m1.session_date AND m2.sender_email = ? AND m2.role = 'user' ORDER BY id ASC LIMIT 1) as preview_content,
                COUNT(*) as msg_count
         FROM messages m1
-        WHERE session_date != ?
+        WHERE session_date != ? AND room_id IS NULL AND sender_email = ?
         GROUP BY session_date
         ORDER BY session_date DESC
       `,
-      args: [todaySession]
+      args: [userEmail, todaySession, userEmail]
     });
     res.json({ success: true, history: result.rows });
   } catch (err) {
@@ -298,13 +307,15 @@ app.get('/api/history', async (req, res) => {
   }
 });
 
-// 특정 과거 세션 내용 불러오기
+// 특정 과거 세션 내용 불러오기 (계정별 격리)
 app.get('/api/history/:session_date', async (req, res) => {
   try {
     const { session_date } = req.params;
+    const userEmail = req.headers['user-email'] || null;
+    if (!userEmail) return res.json({ success: true, messages: [] });
     const result = await db.execute({
-      sql: 'SELECT * FROM messages WHERE session_date = ? ORDER BY id ASC',
-      args: [session_date]
+      sql: 'SELECT * FROM messages WHERE session_date = ? AND room_id IS NULL AND sender_email = ? ORDER BY id ASC',
+      args: [session_date, userEmail]
     });
     res.json({ success: true, messages: result.rows });
   } catch (err) {
@@ -329,10 +340,15 @@ app.put('/api/board/:id', async (req, res) => {
   }
 });
 
-// Board 리스트 불러오기 (고정된 모든 답변)
+// Board 리스트 불러오기 (계정별 고정 답변)
 app.get('/api/board', async (req, res) => {
   try {
-    const result = await db.execute('SELECT * FROM messages WHERE is_pinned = 1 ORDER BY id DESC');
+    const userEmail = req.headers['user-email'] || null;
+    if (!userEmail) return res.json({ success: true, messages: [] });
+    const result = await db.execute({
+      sql: 'SELECT * FROM messages WHERE is_pinned = 1 AND sender_email = ? ORDER BY id DESC',
+      args: [userEmail]
+    });
     res.json({ success: true, messages: result.rows });
   } catch (err) {
     console.error(err);

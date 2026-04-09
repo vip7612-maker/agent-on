@@ -223,13 +223,19 @@ function applyUserInfo(userInfo) {
   initUserBackend(userInfo);
 }
 
+// 현재 로그인된 사용자 이메일 가져오기
+function getCurrentUserEmail() {
+  const u = localStorage.getItem('agentOn_user');
+  return u ? JSON.parse(u).email : '';
+}
+
 // 대화 내역 실시간 동기화 (폴링 기법)
 async function syncChats() {
   if (isViewingHistory) return; // 히스토리 화면이거나 과거 대화를 볼 때는 중단
   
   try {
     const url = currentRoomId ? `/api/chat?room_id=${currentRoomId}` : '/api/chat';
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: { 'User-Email': getCurrentUserEmail() } });
     const data = await res.json();
     if (data.success && data.messages.length !== currentMsgCount) {
       currentMsgCount = data.messages.length;
@@ -400,12 +406,7 @@ async function handleSend() {
   currentMsgCount = -1;
 
   try {
-    // 그룹챗이면 발신자 이메일 헤더 추가
-    const headers = { 'Content-Type': 'application/json' };
-    const userInfoStr = localStorage.getItem('agentOn_user');
-    if (currentRoomId && userInfoStr) {
-      headers['User-Email'] = JSON.parse(userInfoStr).email;
-    }
+    const headers = { 'Content-Type': 'application/json', 'User-Email': getCurrentUserEmail() };
     await fetch('/api/chat', {
       method: 'POST',
       headers: headers,
@@ -489,7 +490,7 @@ async function loadHistoryList() {
   if (!historyList) return;
   try {
     historyList.innerHTML = '<div style="padding:16px;color:var(--text-muted);">과거 대화 불러오는 중...</div>';
-    const res = await fetch('/api/history');
+    const res = await fetch('/api/history', { headers: { 'User-Email': getCurrentUserEmail() } });
     const data = await res.json();
     historyList.innerHTML = '';
     
@@ -522,7 +523,7 @@ async function loadHistoryList() {
         messagesEl.style.display = 'block';
         
         try {
-          const hRes = await fetch('/api/history/' + item.session_date);
+          const hRes = await fetch('/api/history/' + item.session_date, { headers: { 'User-Email': getCurrentUserEmail() } });
           const hData = await hRes.json();
           messagesEl.innerHTML = `<div style="text-align:center; padding:16px 0 24px; font-size:0.85rem; color:var(--text-muted);">---- [ ${item.session_date} ] 과거 대화 내역입니다 ----</div>`;
           
@@ -643,7 +644,7 @@ if (navChat && navHistory && navBoard) {
        if (!boardList) return;
        boardList.innerHTML = '<div style="color:var(--text-muted); text-align:center;">저장된 보드 답변 불러오는 중...</div>';
        try {
-         const res = await fetch('/api/board');
+         const res = await fetch('/api/board', { headers: { 'User-Email': getCurrentUserEmail() } });
          const data = await res.json();
          boardList.innerHTML = '';
          if(data.messages.length === 0) {
@@ -845,6 +846,8 @@ async function initUserBackend(userInfo) {
       if(data.user.role === 'ADMIN') {
         const adminMenu = document.getElementById('adminSettingMenu');
         if(adminMenu) adminMenu.style.display = 'flex';
+      }
+      if(data.user.role === 'ADMIN' || data.user.role === 'APPROVED') {
         const harnessMenu = document.getElementById('harnessSettingMenu');
         if(harnessMenu) harnessMenu.style.display = 'flex';
         const automationMenu = document.getElementById('automationSettingMenu');

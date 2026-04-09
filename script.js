@@ -15,7 +15,7 @@ let currentRoomId = null; // 현재 선택된 그룹챗 ID (null이면 1:1 ONAi 
 
 // 모든 메인 뷰를 숨기고 지정한 뷰만 표시
 function showMainView(viewId) {
-  var views = ['chatView', 'historyView', 'boardView', 'harnessGalleryView', 'adminSettingsView', 'landingView'];
+  var views = ['chatView', 'historyView', 'boardView', 'harnessGalleryView', 'automationGalleryView', 'adminSettingsView', 'landingView'];
   views.forEach(function(id) {
     var el = document.getElementById(id);
     if(el) el.style.display = 'none';
@@ -733,6 +733,21 @@ window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('userMenuPopup').classList.remove('show');
     });
   }
+
+  // --- 자동화 설정 메뉴 연결 ---
+  const automationMenu = document.getElementById('automationSettingMenu');
+  if(automationMenu) {
+    automationMenu.addEventListener('click', () => {
+      showMainView('automationGalleryView');
+      var addBtn = document.getElementById('addAutomationBtn');
+      if(addBtn && window.currentUserRole === 'ADMIN') {
+        addBtn.style.display = 'block';
+        addBtn.onclick = function() { document.getElementById('automationCreateForm').style.display = 'block'; };
+      }
+      loadAutomationGallery();
+      document.getElementById('userMenuPopup').classList.remove('show');
+    });
+  }
 });
 
 // --- 회원 관리 및 그룹 채팅 로직 ---
@@ -751,6 +766,8 @@ async function initUserBackend(userInfo) {
         if(adminMenu) adminMenu.style.display = 'flex';
         const harnessMenu = document.getElementById('harnessSettingMenu');
         if(harnessMenu) harnessMenu.style.display = 'flex';
+        const automationMenu = document.getElementById('automationSettingMenu');
+        if(automationMenu) automationMenu.style.display = 'flex';
       }
       fetchMyRooms(userInfo.email);
     }
@@ -1137,6 +1154,127 @@ window.saveHarnessEdit = async function() {
   loadHarnessGallery();
 }
 
-// 초기화
-initHarnessPopup();
-initHarnessGalleryBtn();
+// ==========================================
+// 자동화(Automation) 갤러리 및 로직
+// ==========================================
+window.createAutomation = async function() {
+  const title = document.getElementById('newAutomationTitle').value.trim();
+  const content = document.getElementById('newAutomationContent').value.trim();
+  if(!title || !content) return alert('제목과 내용을 모두 입력해주세요.');
+  const userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  const email = JSON.parse(userInfoStr).email;
+  try {
+    const res = await fetch('/api/admin/automations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Email': email },
+      body: JSON.stringify({ title, content })
+    });
+    const data = await res.json();
+    if(data.success) {
+      document.getElementById('newAutomationTitle').value = '';
+      document.getElementById('newAutomationContent').value = '';
+      document.getElementById('automationCreateForm').style.display = 'none';
+      loadAutomationGallery();
+    }
+  } catch(e) { console.error('Automation create failed', e); }
+};
+
+window.loadAutomationGallery = async function() {
+  const userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  const email = JSON.parse(userInfoStr).email;
+  const isAdmin = (window.currentUserRole === 'ADMIN');
+  const endpoint = isAdmin ? '/api/admin/automations' : '/api/automations';
+  const headers = isAdmin ? {'User-Email': email} : {};
+  try {
+    const res = await fetch(endpoint, { headers });
+    const data = await res.json();
+    const grid = document.getElementById('automationGalleryGrid');
+    if(!grid) return;
+    if(data.success && data.automations && data.automations.length > 0) {
+      grid.innerHTML = data.automations.map(a => {
+        const badge = isAdmin ? `<span style="position:absolute;top:8px;right:8px;font-size:0.7rem;padding:2px 6px;border-radius:4px;background:${a.is_visible?'rgba(16,185,129,0.2)':'rgba(239,68,68,0.2)'};color:${a.is_visible?'#10b981':'#ef4444'};">${a.is_visible?'노출':'숨김'}</span>` : '';
+        const btns = isAdmin ? `
+          <div style="display:flex;gap:6px;margin-top:12px;border-top:1px solid var(--border-color);padding-top:10px;">
+            <button onclick="event.stopPropagation();window.openAutomationEdit(${a.id})" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:#10b981;cursor:pointer;font-size:0.8rem;">수정</button>
+            <button onclick="event.stopPropagation();window.toggleAutomationVisibility(${a.id})" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:var(--text-muted);cursor:pointer;font-size:0.8rem;">${a.is_visible?'숨기기':'노출'}</button>
+            <button onclick="event.stopPropagation();window.deleteAutomation(${a.id})" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#ef4444;cursor:pointer;font-size:0.8rem;">삭제</button>
+          </div>
+        ` : '';
+        return `
+          <div class="harness-card" style="position:relative;padding:20px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-sidebar);transition:all 0.2s;overflow:hidden;">
+            ${badge}
+            <div style="width:48px;height:48px;border-radius:12px;background:rgba(16,185,129,0.1);display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
+              <iconify-icon icon="lucide:bot" style="font-size:1.4rem;color:#10b981;"></iconify-icon>
+            </div>
+            <div style="font-weight:600;font-size:1rem;margin-bottom:6px;">${a.title}</div>
+            <div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;">${a.content}</div>
+            ${btns}
+          </div>
+        `;
+      }).join('');
+    } else {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-muted);"><iconify-icon icon="lucide:inbox" style="font-size:3rem;margin-bottom:12px;display:block;"></iconify-icon><div style="font-size:1.1rem;margin-bottom:8px;">등록된 자동화가 없습니다</div><div style="font-size:0.9rem;">'+(isAdmin?'"+ 새 자동화" 버튼을 눌러 추가해보세요.':'관리자가 등록하면 여기에 표시됩니다.')+'</div></div>';
+    }
+  } catch(e) { console.error('Automation load failed:', e); }
+};
+
+window.toggleAutomationVisibility = async function(id) {
+  var userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  var email = JSON.parse(userInfoStr).email;
+  var listRes = await fetch('/api/admin/automations', { headers: {'User-Email': email} });
+  var listData = await listRes.json();
+  var a = listData.automations.find(function(x){return x.id === id;});
+  if(!a) return;
+  await fetch('/api/admin/automations/' + id, {
+    method: 'PUT',
+    headers: {"Content-Type": "application/json", "User-Email": email},
+    body: JSON.stringify({ title: a.title, content: a.content, is_visible: a.is_visible ? 0 : 1 })
+  });
+  loadAutomationGallery();
+};
+
+window.deleteAutomation = async function(id) {
+  if(!confirm('이 자동화 작업을 삭제하시겠습니까?')) return;
+  var userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  var email = JSON.parse(userInfoStr).email;
+  await fetch('/api/admin/automations/' + id, {
+    method: 'DELETE',
+    headers: {'User-Email': email}
+  });
+  loadAutomationGallery();
+};
+
+window.openAutomationEdit = async function(id) {
+  var userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  var email = JSON.parse(userInfoStr).email;
+  var res = await fetch('/api/admin/automations', { headers: {'User-Email': email} });
+  var data = await res.json();
+  var a = data.automations.find(function(x){return x.id === id;});
+  if(!a) return;
+  document.getElementById('editAutomationId').value = a.id;
+  document.getElementById('editAutomationTitle').value = a.title;
+  document.getElementById('editAutomationContent').value = a.content;
+  document.getElementById('automationEditModal').style.display = 'flex';
+};
+
+window.saveAutomationEdit = async function() {
+  var userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  var email = JSON.parse(userInfoStr).email;
+  var id = document.getElementById('editAutomationId').value;
+  var title = document.getElementById('editAutomationTitle').value.trim();
+  var content = document.getElementById('editAutomationContent').value.trim();
+  if(!title || !content) return alert('제목과 내용을 모두 입력해주세요.');
+  await fetch('/api/admin/automations/' + id, {
+    method: 'PUT',
+    headers: {"Content-Type": "application/json", "User-Email": email},
+    body: JSON.stringify({ title: title, content: content, is_visible: 1 })
+  });
+  document.getElementById('automationEditModal').style.display = 'none';
+  loadAutomationGallery();
+};

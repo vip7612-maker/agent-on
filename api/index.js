@@ -85,6 +85,18 @@ async function initDb() {
         FOREIGN KEY(created_by) REFERENCES users(email)
       )
     `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS automations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        is_visible INTEGER DEFAULT 1,
+        created_by TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(created_by) REFERENCES users(email)
+      )
+    `);
     
     // Seed initial admin if not exists
     try {
@@ -493,6 +505,66 @@ app.delete('/api/admin/harnesses/:id', async (req, res) => {
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ============================================
+// Automations CRUD API
+// ============================================
+
+app.get('/api/admin/automations', async (req, res) => {
+  const email = req.headers['user-email'];
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    const result = await db.execute('SELECT * FROM automations ORDER BY id DESC');
+    res.json({ success: true, automations: result.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/automations', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { title, content } = req.body;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    await db.execute({
+      sql: 'INSERT INTO automations (title, content, created_by) VALUES (?, ?, ?)',
+      args: [title, content, email]
+    });
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/admin/automations/:id', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { id } = req.params;
+  const { title, content, is_visible } = req.body;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    await db.execute({
+      sql: 'UPDATE automations SET title = ?, content = ?, is_visible = ? WHERE id = ?',
+      args: [title, content, is_visible, id]
+    });
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/admin/automations/:id', async (req, res) => {
+  const email = req.headers['user-email'];
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    await db.execute({ sql: 'DELETE FROM automations WHERE id=?', args: [req.params.id] });
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/automations', async (req, res) => {
+  try {
+    const result = await db.execute('SELECT * FROM automations WHERE is_visible = 1 ORDER BY id DESC');
+    res.json({ success: true, automations: result.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 const PORT = process.env.PORT || 3000;

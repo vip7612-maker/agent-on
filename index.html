@@ -67,6 +67,9 @@
               하네스 설정
             </span>
           </div>
+          <div class="menu-req-item" id="automationSettingMenu" style="display: none;">
+            <span><iconify-icon icon="lucide:bot"></iconify-icon> 자동화 설정</span>
+          </div>
           <div class="menu-req-item">
             <span><iconify-icon icon="lucide:settings"></iconify-icon> 설정</span>
             <span class="shortcut">⌘,</span>
@@ -217,6 +220,33 @@
         <!-- 갤러리 그리드 -->
         <div id="harnessGalleryGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:16px;"></div>
       </div>
+
+      <!-- 자동화 갤러리 뷰 -->
+      <div id="automationGalleryView" style="display: none; flex: 1; flex-direction: column; padding: 24px; overflow-y: auto; background-color: var(--bg-main);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+          <div>
+            <h2 style="font-weight: 600; font-size: 1.5rem; margin-bottom: 4px; display:flex; align-items:center; gap:8px;">
+              <iconify-icon icon="lucide:bot" style="color:#10b981;"></iconify-icon> 자동화 갤러리
+            </h2>
+            <span style="color: var(--text-muted); font-size: 0.9rem;">백그라운드에서 실행될 자동화 작업을 관리하세요.</span>
+          </div>
+          <button id="addAutomationBtn" style="display:none; padding:8px 16px; border-radius:8px; background:linear-gradient(135deg, #10b981, #3b82f6); border:none; color:#fff; cursor:pointer; font-weight:500; font-size:0.9rem;">+ 새 자동화</button>
+        </div>
+
+        <!-- 신규 자동화 생성 폼 (어드민만) -->
+        <div id="automationCreateForm" style="display:none; margin-bottom:24px; padding:20px; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-sidebar);">
+          <h3 style="margin-bottom:12px; font-size:1rem;">새 자동화 생성</h3>
+          <input type="text" id="newAutomationTitle" placeholder="자동화 제목 (예: 매일 아침 브리핑)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); margin-bottom:8px; box-sizing:border-box;" />
+          <textarea id="newAutomationContent" placeholder="자동화 작업 내용을 입력하세요..." rows="4" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); resize:vertical; box-sizing:border-box;"></textarea>
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+            <button onclick="document.getElementById('automationCreateForm').style.display='none'" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-muted); cursor:pointer;">취소</button>
+            <button onclick="window.createAutomation()" style="padding:8px 16px; border-radius:8px; background:linear-gradient(135deg, #10b981, #3b82f6); border:none; color:#fff; cursor:pointer; font-weight:500;">생성</button>
+          </div>
+        </div>
+
+        <!-- 자동화 갤러리 그리드 -->
+        <div id="automationGalleryGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:16px;"></div>
+      </div>
       <!-- 관리자 설정 뷰 (우측 패널) -->
       <div id="adminSettingsView" style="display: none; flex: 1; flex-direction: column; padding: 24px; overflow-y: auto; background-color: var(--bg-main);">
         <div style="margin-bottom:24px;">
@@ -252,6 +282,23 @@
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
         <button onclick="document.getElementById('harnessEditModal').style.display='none'" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-muted); cursor:pointer;">취소</button>
         <button onclick="window.saveHarnessEdit()" style="padding:8px 16px; border-radius:8px; background:linear-gradient(135deg, #f59e0b, #ef4444); border:none; color:#fff; cursor:pointer; font-weight:500;">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 자동화 수정 모달 -->
+  <div id="automationEditModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#1e1e1e; width:90%; max-width:500px; border-radius:12px; padding:24px; border:1px solid var(--border-color);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="display:flex; align-items:center; gap:8px;"><iconify-icon icon="lucide:bot" style="color:#10b981;"></iconify-icon> 자동화 수정</h3>
+        <button onclick="document.getElementById('automationEditModal').style.display='none'" style="background:none; border:none; cursor:pointer;"><iconify-icon icon="lucide:x" style="font-size:1.2rem; color:var(--text-high);"></iconify-icon></button>
+      </div>
+      <input type="hidden" id="editAutomationId" />
+      <input type="text" id="editAutomationTitle" placeholder="자동화 제목" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); margin-bottom:8px; box-sizing:border-box;" />
+      <textarea id="editAutomationContent" placeholder="자동화 작업 내용" rows="5" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); resize:vertical; box-sizing:border-box;"></textarea>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+        <button onclick="document.getElementById('automationEditModal').style.display='none'" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-muted); cursor:pointer;">취소</button>
+        <button onclick="window.saveAutomationEdit()" style="padding:8px 16px; border-radius:8px; background:linear-gradient(135deg, #10b981, #3b82f6); border:none; color:#fff; cursor:pointer; font-weight:500;">저장</button>
       </div>
     </div>
   </div>

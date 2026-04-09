@@ -15,9 +15,11 @@
   <div class="app-container">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <button class="icon-btn" id="sidebarToggleBtn"><iconify-icon icon="mdi:page-layout-sidebar-left"></iconify-icon></button>
         <div class="logo">✦ 온비서</div>
-        <button class="icon-btn"><iconify-icon icon="mdi:square-edit-outline"></iconify-icon></button>
+        <div class="header-actions">
+          <button class="icon-btn" aria-label="새 대화"><iconify-icon icon="mdi:square-edit-outline"></iconify-icon></button>
+          <button class="icon-btn" id="sidebarToggleBtn" aria-label="사이드바 토글"><iconify-icon icon="lucide:panel-left"></iconify-icon></button>
+        </div>
       </div>
       <div class="sidebar-nav">
         <div class="nav-item"><iconify-icon icon="mdi:message-outline"></iconify-icon> <span class="nav-label">새 대화</span></div>

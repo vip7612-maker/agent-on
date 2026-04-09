@@ -44,6 +44,12 @@ html, body {
   align-items: center;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .logo {
   font-weight: 600;
   font-size: 1.1rem;
@@ -320,11 +326,14 @@ html, body {
 .sidebar.collapsed .sidebar-header {
   justify-content: center;
   flex-direction: column;
-  gap: 16px;
   padding: 16px 0;
 }
 /* Collapse 상태일 때 오른쪽의 새 채팅 아이콘을 숨기거나 아이콘 정렬 변경 */
-.sidebar.collapsed .sidebar-header .logo + .icon-btn {
+.sidebar.collapsed .header-actions {
+  flex-direction: column;
+  gap: 0;
+}
+.sidebar.collapsed .header-actions button:not(#sidebarToggleBtn) {
   display: none;
 }
 .sidebar.collapsed .nav-item {

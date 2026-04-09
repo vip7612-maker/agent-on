@@ -27,10 +27,20 @@
           <button class="icon-btn" id="sidebarToggleBtn" aria-label="사이드바 토글"><iconify-icon icon="lucide:panel-left"></iconify-icon></button>
         </div>
       </div>
-      <div class="sidebar-nav">
+      <div class="sidebar-nav" id="sidebarNav" style="display: none;">
         <div class="nav-item active" id="navChat"><iconify-icon icon="mdi:message-outline"></iconify-icon> <span class="nav-label">채팅</span></div>
         <div class="nav-item" id="navHistory"><iconify-icon icon="mdi:history"></iconify-icon> <span class="nav-label">지난 채팅</span></div>
         <div class="nav-item" id="navBoard"><iconify-icon icon="mdi:text-box-check-outline"></iconify-icon> <span class="nav-label">Board</span></div>
+      </div>
+      
+      <!-- 로그아웃 전용 메뉴 안내문 -->
+      <div class="sidebar-nav" id="loggedOutNav" style="padding: 24px 16px; flex: 1;">
+         <div style="font-size: 0.85rem; color:var(--text-high); font-weight: 600; margin-bottom: 24px;">🚀 시스템 규약 베이스</div>
+         <div style="font-size: 0.85rem; color:var(--text-muted); line-height: 1.7;">
+            <strong style="color:var(--text-high);">💬 채팅</strong><br>로컬 리소스 연동을 통한 실질적 업무 지시 및 수행<br><br>
+            <strong style="color:var(--text-high);">🕒 지난 채팅</strong><br>매일 05시 기준 1일 단위 대화 아카이빙<br><br>
+            <strong style="color:var(--text-high);">📌 Board</strong><br>저장된 업무 로그와 노하우를 스크랩하는 스페이스
+         </div>
       </div>
       <div class="sidebar-footer" style="position: relative;">
         <button class="google-btn" id="googleLoginBtn">

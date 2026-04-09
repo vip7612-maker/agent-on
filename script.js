@@ -41,6 +41,10 @@ function oauthSignIn() {
 }
 
 // 구글 토큰 추출 및 사용자 정보 로드
+let savedToken = localStorage.getItem('agentOn_token');
+let savedUserStr = localStorage.getItem('agentOn_user');
+let savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
+
 async function checkGoogleLogin() {
   const fragmentString = location.hash.substring(1);
   const params = {};
@@ -51,50 +55,82 @@ async function checkGoogleLogin() {
   }
   
   if (Object.keys(params).length > 0 && params['access_token']) {
-    // 1. URL 해시 정리 (주소창 깔끔하게)
+    savedToken = params['access_token'];
+    localStorage.setItem('agentOn_token', savedToken);
     window.history.replaceState({}, document.title, window.location.pathname);
-    
+  }
+  
+  if (savedToken) {
     try {
-      // 2. 구글에서 프로필 정보 가져오기
       const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { Authorization: `Bearer ${params['access_token']}` }
+        headers: { Authorization: `Bearer ${savedToken}` }
       });
       const userInfo = await res.json();
-      
-      // 3. UI 업데이트
-      const googleBtn = document.getElementById('googleLoginBtn');
-      if (googleBtn) googleBtn.style.display = 'none';
-      
-      const userProfile = document.getElementById('userProfile');
-      if (userProfile) userProfile.style.display = 'flex';
-      
-      // 프로필 이미지 및 이름 세팅
-      if (userProfile) {
-        const avatarDiv = userProfile.querySelector('.avatar');
-        if (userInfo.picture) {
-          avatarDiv.style.background = 'transparent';
-          avatarDiv.innerHTML = `<img src="${userInfo.picture}" alt="profile" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
-        } else {
-          avatarDiv.textContent = userInfo.given_name ? userInfo.given_name[0] : '이';
-        }
-        userProfile.querySelector('.user-name').textContent = userInfo.name || '이경진';
-        
-        // 이메일 팝업 메뉴에 삽입
-        if (userInfo.email) {
-          const menuEmail = document.getElementById('menuEmail');
-          if (menuEmail) menuEmail.textContent = userInfo.email;
-        }
-        
-        // 동적 인사말 호칭도 업데이트
-        const greetingTitle = document.getElementById('welcomeTitle');
-        if (greetingTitle && greetingTitle.textContent.includes('교장님')) {
-          greetingTitle.textContent = greetingTitle.textContent.replace('교장님', userInfo.name + ' 교장님');
-        }
+      if (userInfo.error) {
+        localStorage.removeItem('agentOn_token');
+        localStorage.removeItem('agentOn_user');
+        showLandingPage();
+        return;
       }
+      localStorage.setItem('agentOn_user', JSON.stringify(userInfo));
+      applyUserInfo(userInfo);
     } catch (err) {
       console.error('Failed to fetch user info', err);
+      if (savedUser) applyUserInfo(savedUser);
+      else showLandingPage();
+    }
+  } else {
+    showLandingPage();
+  }
+}
+
+function showLandingPage() {
+  document.getElementById('loggedOutNav').style.display = 'block';
+  document.getElementById('sidebarNav').style.display = 'none';
+  document.getElementById('landingView').style.display = 'flex';
+  document.getElementById('chatView').style.display = 'none';
+  document.getElementById('historyView').style.display = 'none';
+  document.getElementById('boardView').style.display = 'none';
+  document.getElementById('googleLoginBtn').style.display = 'flex';
+  document.getElementById('userProfile').style.display = 'none';
+  isViewingHistory = true; // stop sync
+}
+
+function applyUserInfo(userInfo) {
+  document.getElementById('loggedOutNav').style.display = 'none';
+  document.getElementById('sidebarNav').style.display = 'flex';
+  document.getElementById('landingView').style.display = 'none';
+  document.getElementById('chatView').style.display = 'flex';
+  
+  const googleBtn = document.getElementById('googleLoginBtn');
+  if (googleBtn) googleBtn.style.display = 'none';
+  
+  const userProfile = document.getElementById('userProfile');
+  if (userProfile) userProfile.style.display = 'flex';
+  
+  if (userProfile) {
+    const avatarDiv = userProfile.querySelector('.avatar');
+    if (userInfo.picture) {
+      avatarDiv.style.background = 'transparent';
+      avatarDiv.innerHTML = `<img src="${userInfo.picture}" alt="profile" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+    } else {
+      avatarDiv.textContent = userInfo.given_name ? userInfo.given_name[0] : '이';
+    }
+    userProfile.querySelector('.user-name').textContent = userInfo.name || '이경진';
+    
+    if (userInfo.email) {
+      const menuEmail = document.getElementById('menuEmail');
+      if (menuEmail) menuEmail.textContent = userInfo.email;
+    }
+    
+    const greetingTitle = document.getElementById('welcomeTitle');
+    if (greetingTitle && greetingTitle.textContent.includes('교장님')) {
+      greetingTitle.textContent = greetingTitle.textContent.replace('교장님', userInfo.name + ' 교장님');
     }
   }
+  
+  isViewingHistory = false;
+  syncChats();
 }
 
 // 대화 내역 실시간 동기화 (폴링 기법)
@@ -470,7 +506,9 @@ if (navChat && navHistory && navBoard) {
 const logos = document.querySelectorAll('.logo');
 logos.forEach(logo => {
   logo.addEventListener('click', () => {
-    if(navChat) navChat.click();
+    if (localStorage.getItem('agentOn_token') && navChat) {
+       navChat.click();
+    }
   });
 });
 
@@ -478,7 +516,6 @@ logos.forEach(logo => {
 window.addEventListener('DOMContentLoaded', () => {
   checkGoogleLogin();
   updateGreeting();
-  syncChats();
 
   const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
   if (sidebarToggleBtn) {
@@ -525,6 +562,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('agentOn_token');
+        localStorage.removeItem('agentOn_user');
         window.history.replaceState({}, document.title, window.location.pathname);
         location.reload(); // 로그아웃을 위해 새로고침
       });

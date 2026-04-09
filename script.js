@@ -372,4 +372,19 @@ window.addEventListener('DOMContentLoaded', () => {
   if (googleLoginBtn) {
     googleLoginBtn.addEventListener('click', oauthSignIn);
   }
+  
+  // 모바일에서 채팅 영역 터치 시 사이드바 숨김 처리
+  const mainContent = document.querySelector('.main-content');
+  if (mainContent) {
+    mainContent.addEventListener('click', (e) => {
+      if (window.innerWidth <= 768) {
+        // 모바일 상단 헤더(햄버거 메뉴 영역) 터치가 아닌 경우에만 닫기
+        if (!e.target.closest('.mobile-header')) {
+          if (sidebar && sidebar.classList.contains('open')) {
+            sidebar.classList.remove('open');
+          }
+        }
+      }
+    });
+  }
 });

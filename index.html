@@ -165,6 +165,10 @@
               <div style="padding:8px 16px; font-size:0.8rem; color:var(--text-muted); font-weight:600;">하네스 선택</div>
               <div id="harnessListChat" style="display:flex; flex-direction:column;"></div>
             </div>
+            <!-- 파일첨부 버튼 (그룹챗 전용, 기본 숨김) -->
+            <button class="icon-btn" id="attachBtn" aria-label="파일첨부" style="display:none;">
+              <iconify-icon icon="lucide:paperclip"></iconify-icon>
+            </button>
             <input type="text" id="chatInput" placeholder="Agent ONAi에게 물어보세요..." autocomplete="off" />
             <button class="icon-btn" id="micBtn" aria-label="음성"><iconify-icon icon="mdi:microphone"></iconify-icon></button>
             <button class="icon-btn active" id="sendBtn" aria-label="전송"><iconify-icon icon="mdi:arrow-up-circle"></iconify-icon></button>

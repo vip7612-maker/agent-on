@@ -178,11 +178,18 @@ app.post('/api/chat', async (req, res) => {
   }
 
   try {
+    const senderEmail = req.headers['user-email'] || null;
+    
     // 사용자 메시지 저장
     await db.execute({
-      sql: 'INSERT INTO messages (role, content, session_date, room_id) VALUES (?, ?, ?, ?)',
-      args: ['user', message, getGlobalSessionDate(), room_id || null]
+      sql: 'INSERT INTO messages (role, content, session_date, room_id, sender_email) VALUES (?, ?, ?, ?, ?)',
+      args: ['user', message, getGlobalSessionDate(), room_id || null, senderEmail]
     });
+
+    // 그룹챗이면 AI 봇 호출 없이 메시지만 저장하고 종료
+    if (room_id) {
+      return res.json({ success: true, isGroupChat: true });
+    }
 
     // 1. 외부 에이전트(다른 맥미니의 안티그래비티) 연동
     if (process.env.ANTIGRAVITY_WEBHOOK_URL) {
@@ -202,19 +209,12 @@ app.post('/api/chat', async (req, res) => {
 
     // 2. Agent ONAi (Gemini) 연동 로직 (안티그래비티가 오프라인이거나 미설정일 때)
     let botResponse = '';
-    
-    // 그룹챗일 경우 방 이름을 확인하여 컨텍스트에 추가
-    let roomContext = '';
-    if (room_id) {
-       const r = await db.execute({ sql: 'SELECT name FROM rooms WHERE id = ?', args: [room_id] });
-       if (r.rows.length > 0) roomContext = `현재 사용자는 '${r.rows[0].name}' 채팅방에 있습니다. 이 방의 성격(예: 다수의 참여자, 특정 그룹 등)에 맞게 역할을 조정하여 답변하세요. `;
-    }
 
     if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'DUMMY_KEY') {
       try {
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
-          contents: `당신의 이름은 'Agent ONAi'이며, 친절하고 다재다능한 AI 비서입니다. ${roomContext}사용자 메시지: ${message}`
+          contents: `당신의 이름은 'Agent ONAi'이며, 친절하고 다재다능한 AI 비서입니다. 사용자 메시지: ${message}`
         });
         botResponse = response.text;
       } catch (apiErr) {
@@ -228,7 +228,7 @@ app.post('/api/chat', async (req, res) => {
     // AI 응답 저장
     await db.execute({
       sql: 'INSERT INTO messages (role, content, session_date, room_id) VALUES (?, ?, ?, ?)',
-      args: ['bot', botResponse, getGlobalSessionDate(), room_id || null]
+      args: ['bot', botResponse, getGlobalSessionDate(), null]
     });
 
     res.json({ success: true, reply: botResponse });

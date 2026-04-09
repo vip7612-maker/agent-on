@@ -257,14 +257,31 @@ async function syncChats() {
       // DB의 최신 메시지 전체 렌더링
       data.messages.forEach(msg => {
         const msgDiv = document.createElement('div');
-        msgDiv.className = `message ${msg.role}`;
+        
+        // 그룹챗: 모든 메시지를 발신자 기준으로 정렬 (내가 보낸 건 user, 남이 보낸 건 bot 스타일)
+        if (currentRoomId) {
+          const myEmail = localStorage.getItem('agentOn_user') ? JSON.parse(localStorage.getItem('agentOn_user')).email : '';
+          const isMe = msg.sender_email === myEmail;
+          msgDiv.className = `message ${isMe ? 'user' : 'bot'}`;
+          
+          // 상대방 메시지면 발신자 이름 표시
+          if (!isMe && msg.sender_email) {
+            const senderLabel = document.createElement('div');
+            senderLabel.style.cssText = 'font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; font-weight:500;';
+            senderLabel.textContent = msg.sender_email.split('@')[0];
+            msgDiv.appendChild(senderLabel);
+          }
+        } else {
+          msgDiv.className = `message ${msg.role}`;
+        }
+        
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
         contentDiv.textContent = msg.content;
         msgDiv.appendChild(contentDiv);
         
-        // 봇 메시지 하단에 복사 버튼 추가
-        if (msg.role === 'bot') {
+        // 봇 메시지 하단에 복사 버튼 추가 (ONAi 채팅에서만)
+        if (!currentRoomId && msg.role === 'bot') {
           const actionRow = document.createElement('div');
           actionRow.className = 'message-actions';
           
@@ -342,9 +359,9 @@ async function handleSend() {
   inputEl.value = '';
   isWaitingForBot = true;
 
-  // 하네스가 선택되어 있으면 합성
+  // 하네스가 선택되어 있으면 합성 (ONAi 채팅에서만)
   let finalMessage = text;
-  if (selectedHarness) {
+  if (!currentRoomId && selectedHarness) {
     const lines = selectedHarness.content.split('\n').filter(l => l.trim()).join('\n');
     finalMessage = text + '\n\n[하네스:' + selectedHarness.title + ']\n' + lines;
     selectedHarness = null;
@@ -361,15 +378,17 @@ async function handleSend() {
   userDiv.appendChild(uContent);
   messagesEl.appendChild(userDiv);
 
-  // 로딩 인디케이터 즉시 표시
-  const loadingDiv = document.createElement('div');
-  loadingDiv.className = `message bot`;
-  loadingDiv.id = 'loadingIndicator';
-  const lContent = document.createElement('div');
-  lContent.className = 'message-content';
-  lContent.textContent = 'Agent ONAi 작동 중...';
-  loadingDiv.appendChild(lContent);
-  messagesEl.appendChild(loadingDiv);
+  // 로딩 인디케이터 (ONAi 채팅에서만 표시)
+  if (!currentRoomId) {
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = `message bot`;
+    loadingDiv.id = 'loadingIndicator';
+    const lContent = document.createElement('div');
+    lContent.className = 'message-content';
+    lContent.textContent = 'Agent ONAi 작동 중...';
+    loadingDiv.appendChild(lContent);
+    messagesEl.appendChild(loadingDiv);
+  }
   
   if (welcomeScreen.style.display !== 'none') {
     welcomeScreen.style.display = 'none';
@@ -381,12 +400,18 @@ async function handleSend() {
   currentMsgCount = -1;
 
   try {
+    // 그룹챗이면 발신자 이메일 헤더 추가
+    const headers = { 'Content-Type': 'application/json' };
+    const userInfoStr = localStorage.getItem('agentOn_user');
+    if (currentRoomId && userInfoStr) {
+      headers['User-Email'] = JSON.parse(userInfoStr).email;
+    }
     await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify({ message: finalMessage, room_id: currentRoomId })
     });
-    // POST 직후 즉각 1회 동기화 (Gemini 폴백이 작동했을 수 있으므로)
+    // POST 직후 즉각 1회 동기화
     syncChats();
   } catch (err) {
     console.error(err);
@@ -551,6 +576,13 @@ if (navChat && navHistory && navBoard) {
        
        const chatRoomHeader = document.getElementById('chatRoomHeader');
        if(chatRoomHeader) chatRoomHeader.style.display = 'none';
+       
+       // 하네스 버튼 복원, placeholder 복원
+       const harnessBtn = document.getElementById('harnessBtn');
+       if(harnessBtn) harnessBtn.style.display = '';
+       const attachBtn = document.getElementById('attachBtn');
+       if(attachBtn) attachBtn.style.display = 'none';
+       inputEl.placeholder = 'Agent ONAi에게 물어보세요...';
        
        syncChats();
     } else {
@@ -866,7 +898,16 @@ async function fetchMyRooms(email) {
             const chatRoomHeader = document.getElementById('chatRoomHeader');
             if(chatRoomHeader) chatRoomHeader.style.display = 'flex';
             
-            // 7. 해당 방의 메시지 로드
+            // 8. 입력창 UI 변경: 하네스 버튼 숨기고 파일첨부 버튼 표시
+            const harnessBtn = document.getElementById('harnessBtn');
+            if(harnessBtn) harnessBtn.style.display = 'none';
+            const harnessPopup = document.getElementById('harnessPopup');
+            if(harnessPopup) harnessPopup.style.display = 'none';
+            const attachBtn = document.getElementById('attachBtn');
+            if(attachBtn) attachBtn.style.display = '';
+            inputEl.placeholder = '메시지를 입력하세요.';
+            
+            // 9. 해당 방의 메시지 로드
             syncChats();
           });
         });

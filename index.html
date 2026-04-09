@@ -329,6 +329,12 @@
           <div class="admin-nav-item" data-panel="adminPanelMembers" style="padding:10px 16px; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.9rem; transition:all 0.15s; border-left:3px solid transparent;">
             <iconify-icon icon="lucide:user-cog" style="color:#f59e0b;"></iconify-icon> 멤버 관리
           </div>
+          
+          <div style="padding:10px 16px 6px; font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:8px;">시스템</div>
+          
+          <div class="admin-nav-item" data-panel="adminPanelWebhook" style="padding:10px 16px; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.9rem; transition:all 0.15s; border-left:3px solid transparent;">
+            <iconify-icon icon="lucide:webhook" style="color:#ef4444;"></iconify-icon> 웹훅 설정
+          </div>
         </div>
         
         <!-- 우측 콘텐츠 영역 -->
@@ -366,6 +372,42 @@
             
             <!-- 그룹챗 목록 -->
             <div id="adminRoomsList" style="display:flex; flex-direction:column; gap:12px;"></div>
+          </div>
+          
+          <!-- 패널 3: 웹훅 설정 -->
+          <div id="adminPanelWebhook" class="admin-panel" style="display:none; flex-direction:column;">
+            <div style="margin-bottom:20px;">
+              <h2 style="font-weight:600; font-size:1.3rem; margin-bottom:4px; display:flex; align-items:center; gap:8px;">
+                <iconify-icon icon="lucide:webhook" style="color:#ef4444;"></iconify-icon> 웹훅 설정
+              </h2>
+              <span style="color:var(--text-muted); font-size:0.85rem;">로컬 에이전트(Antigravity)와의 양방향 웹훅 통신을 설정합니다.</span>
+            </div>
+            
+            <div style="display:flex; flex-direction:column; gap:16px; max-width:600px;">
+              <div>
+                <label style="display:block; font-size:0.9rem; font-weight:500; color:var(--text-high); margin-bottom:8px;">AiON 챗팅룸 주소 (Webhook Inbound URL)</label>
+                <input type="text" id="webhookAionUrl" placeholder="예: https://api.agent-on.com/api/webhook/inbound" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); font-size:0.9rem; box-sizing:border-box;" oninput="window.updateGeneratedPrompt && window.updateGeneratedPrompt()" />
+              </div>
+              
+              <div>
+                <label style="display:block; font-size:0.9rem; font-weight:500; color:var(--text-high); margin-bottom:8px;">Antigravity Agent 웹훅 주소</label>
+                <input type="text" id="webhookAntigravityUrl" placeholder="예: https://your-cloudflare-tunnel.trycloudflare.com" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); font-size:0.9rem; box-sizing:border-box;" oninput="window.updateGeneratedPrompt && window.updateGeneratedPrompt()" />
+              </div>
+              
+              <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+                <button onclick="window.saveWebhookSettings()" style="padding:10px 24px; border-radius:8px; background:linear-gradient(135deg, #ef4444, #f59e0b); border:none; color:#fff; cursor:pointer; font-weight:500;">설정 저장</button>
+              </div>
+            </div>
+            
+            <div style="margin-top:40px; padding-top:20px; border-top:1px solid var(--border-color);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="font-weight:600; font-size:1.1rem; color:var(--text-high); margin:0;">에이전트 주입용 프롬프트 생성기</h3>
+                <button onclick="window.copyWebhookPrompt()" style="display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; background:var(--bg-sidebar); border:1px solid var(--border-color); color:var(--text-high); cursor:pointer; font-size:0.85rem;">
+                  <iconify-icon icon="lucide:copy"></iconify-icon> 프롬프트 복사
+                </button>
+              </div>
+              <textarea id="webhookGeneratedPrompt" readonly rows="12" style="width:100%; padding:16px; border-radius:8px; border:1px solid var(--border-color); background:#1e1e1e; color:#a1a1aa; font-size:0.85rem; line-height:1.6; resize:vertical; box-sizing:border-box; font-family:monospace;"></textarea>
+            </div>
           </div>
           
           <!-- 패널 3: 멤버 관리 -->

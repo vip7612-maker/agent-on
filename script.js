@@ -1263,8 +1263,76 @@ function renderDropdown(roomId, query, eligibleUsers, existingEmails) {
       } else {
         alert('추가 실패');
       }
+      }
     });
   });
+  
+  // 4. 웹훅 설정 로드
+  try {
+    const setRes = await fetch('/api/admin/settings', { headers: {'User-Email': email} });
+    const setData = await setRes.json();
+    if(setData.success && setData.settings) {
+      const aionUrl = document.getElementById('webhookAionUrl');
+      const antiUrl = document.getElementById('webhookAntigravityUrl');
+      if(aionUrl) aionUrl.value = setData.settings['AION_WEBHOOK_URL'] || '';
+      if(antiUrl) antiUrl.value = setData.settings['ANTIGRAVITY_WEBHOOK_URL'] || '';
+      if (typeof window.updateGeneratedPrompt === 'function') window.updateGeneratedPrompt();
+    }
+  } catch(e) { console.error(e); }
+}
+
+window.saveWebhookSettings = async function() {
+  const email = getCurrentUserEmail();
+  const aionUrl = document.getElementById('webhookAionUrl').value.trim();
+  const antiUrl = document.getElementById('webhookAntigravityUrl').value.trim();
+  
+  const settings = {
+    AION_WEBHOOK_URL: aionUrl,
+    ANTIGRAVITY_WEBHOOK_URL: antiUrl
+  };
+  
+  const res = await fetch('/api/admin/settings', {
+    method: 'POST',
+    headers: {"Content-Type": "application/json", "User-Email": email},
+    body: JSON.stringify({ settings })
+  });
+  const data = await res.json();
+  if(data.success) {
+    alert('웹훅 설정이 저장되었습니다.');
+    window.updateGeneratedPrompt();
+  } else {
+    alert('저장 실패');
+  }
+}
+
+window.updateGeneratedPrompt = function() {
+  const aionUrl = document.getElementById('webhookAionUrl').value.trim() || '{AiON_챗팅룸_주소}';
+  const antiUrl = document.getElementById('webhookAntigravityUrl').value.trim() || '{Antigravity_웹훅_주소}';
+  
+  const prompt = `당신은 현재 이 서버에 상주하며, AiON 웹앱과의 웹훅 브릿지 및 명령 수행 임무를 담당하는 안티그래비티 에이전트입니다.
+
+[설정 정보]
+- 수신용 웹훅 주소(당신의 주소): ${antiUrl}
+- 결과 반환용 AiON 채팅룸 웹훅 주소: ${aionUrl}
+
+[핵심 강제 조항]
+1. 수신용 웹훅 주소로 POST 요청이 들어오는지 항상 Listen 하십시오. 들어오는 JSON payload 구조는 { "message": "...", "room_id": ... } 입니다.
+2. 전달받은 메세지가 반드시 "[Airo]" 접두어로 시작하는지 검열하십시오. (대소문자 구분 없이 [Airo] 또는 [airo])
+3. "[Airo]"로 시작하는 메세지에 한해서만 요청된 지시를 성실히 수행한 뒤, 반드시 그 결과와 산출물을 '결과 반환용 AiON 채팅룸 웹훅 주소'로 POST 통신을 통해 회신해야 합니다. (강제)
+4. 결과 반환용 웹훅을 쏠 때 Payload 구조는 다음과 같이 구성해야 합니다: 
+   { "role": "bot", "content": "수행 결과 텍스트...", "room_id": 수신받은_방_ID }
+5. 만약 "[Airo]" 접두어가 없으면 즉각 무시하십시오.`;
+
+  const ta = document.getElementById('webhookGeneratedPrompt');
+  if(ta) ta.value = prompt;
+}
+
+window.copyWebhookPrompt = function() {
+  const ta = document.getElementById('webhookGeneratedPrompt');
+  if(!ta) return;
+  ta.select();
+  document.execCommand('copy');
+  alert('프롬프트가 복사되었습니다. 안티그래비티 에이전트에게 붙여넣으세요!');
 }
 
 // 사용자 승인/해제

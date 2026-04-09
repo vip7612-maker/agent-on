@@ -97,6 +97,13 @@ async function initDb() {
         FOREIGN KEY(created_by) REFERENCES users(email)
       )
     `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    `);
     
     // Seed initial admin if not exists
     try {
@@ -186,9 +193,12 @@ app.post('/api/chat', async (req, res) => {
     }
 
     // 1. 외부 에이전트(다른 맥미니의 안티그래비티) 연동
-    if (process.env.ANTIGRAVITY_WEBHOOK_URL) {
+    const settingRes = await db.execute({ sql: "SELECT value FROM settings WHERE key = 'ANTIGRAVITY_WEBHOOK_URL'" });
+    const webhookUrl = settingRes.rows.length > 0 && settingRes.rows[0].value ? settingRes.rows[0].value : process.env.ANTIGRAVITY_WEBHOOK_URL;
+
+    if (webhookUrl) {
       try {
-        await fetch(process.env.ANTIGRAVITY_WEBHOOK_URL, {
+        await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message, room_id })
@@ -670,6 +680,40 @@ app.get('/api/automations', async (req, res) => {
   try {
     const result = await db.execute('SELECT * FROM automations WHERE is_visible = 1 ORDER BY id DESC');
     res.json({ success: true, automations: result.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================
+// Settings / Webhook API (ADMIN)
+// ============================================
+
+app.get('/api/admin/settings', async (req, res) => {
+  const email = req.headers['user-email'];
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    
+    const result = await db.execute('SELECT * FROM settings');
+    const settings = {};
+    result.rows.forEach(r => { settings[r.key] = r.value; });
+    res.json({ success: true, settings });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/settings', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { settings } = req.body;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    
+    for (const [key, value] of Object.entries(settings)) {
+      await db.execute({
+        sql: 'REPLACE INTO settings (key, value) VALUES (?, ?)',
+        args: [key, value]
+      });
+    }
+    res.json({ success: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

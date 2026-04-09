@@ -180,6 +180,16 @@ function applyUserInfo(userInfo) {
     if(mainSidebar) mainSidebar.style.display = 'none';
     const mobileHeader = document.querySelector('.mobile-header');
     if(mobileHeader) mobileHeader.style.display = 'none';
+    
+    // 팝업(그룹챗) 모드일 경우 하네스 기능 비활성화, 첨부 버튼 표시
+    const harnessBtn = document.getElementById('harnessBtn');
+    if(harnessBtn) harnessBtn.style.display = 'none';
+    const harnessPopup = document.getElementById('harnessPopup');
+    if(harnessPopup) harnessPopup.style.display = 'none';
+    const attachBtn = document.getElementById('attachBtn');
+    if(attachBtn) attachBtn.style.display = '';
+    const chatInput = document.getElementById('chatInput');
+    if(chatInput) chatInput.placeholder = '메시지를 입력하세요.';
   }
   
   const googleBtn = document.getElementById('googleLoginBtn');
@@ -1025,46 +1035,15 @@ async function fetchMyRooms(email) {
         `).join('');
         container.querySelectorAll('.group-room-btn').forEach(btn => {
           btn.addEventListener('click', () => {
-            // 1. 상태 초기화
-            currentRoomId = btn.getAttribute('data-id');
+            const roomId = btn.getAttribute('data-id');
             const rName = btn.innerText.trim();
-            currentMsgCount = -1;
+            const width = 450;
+            const height = 750;
+            const left = (window.innerWidth / 2) - (width / 2) + window.screenX;
+            const top = (window.innerHeight / 2) - (height / 2) + window.screenY;
+            const features = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no`;
             
-            // 2. 메시지 영역 즉시 비우기 (이전 AiON 채팅 잔류 방지)
-            messagesEl.innerHTML = '';
-            messagesEl.style.display = 'none';
-            welcomeScreen.style.display = 'flex';
-            
-            // 3. 뷰 전환 (showMainView는 isViewingHistory=true로 설정)
-            showMainView('chatView');
-            
-            // 4. 그룹챗이므로 isViewingHistory를 다시 false로 해제 (syncChats 작동 필수)
-            isViewingHistory = false;
-            
-            // 5. 메뉴 활성화 표시
-            container.querySelectorAll('.group-room-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('navChat').classList.remove('active');
-            btn.classList.add('active');
-            
-            // 6. 환영 문구 및 방 헤더 설정
-            const subTitleEl = document.querySelector('.welcome-subtitle');
-            if(subTitleEl) subTitleEl.innerText = rName + ' 채팅방에 오신 것을 환영합니다';
-            const chatRoomTitle = document.getElementById('chatRoomTitle');
-            if(chatRoomTitle) chatRoomTitle.innerText = rName;
-            const chatRoomHeader = document.getElementById('chatRoomHeader');
-            if(chatRoomHeader) chatRoomHeader.style.display = 'flex';
-            
-            // 8. 입력창 UI 변경: 하네스 버튼 숨기고 파일첨부 버튼 표시
-            const harnessBtn = document.getElementById('harnessBtn');
-            if(harnessBtn) harnessBtn.style.display = 'none';
-            const harnessPopup = document.getElementById('harnessPopup');
-            if(harnessPopup) harnessPopup.style.display = 'none';
-            const attachBtn = document.getElementById('attachBtn');
-            if(attachBtn) attachBtn.style.display = '';
-            inputEl.placeholder = '메시지를 입력하세요.';
-            
-            // 9. 해당 방의 메시지 로드
-            syncChats();
+            window.open(`/?room_id=${roomId}&room_name=${encodeURIComponent(rName)}`, `groupchat_${roomId}`, features);
           });
         });
       }

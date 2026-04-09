@@ -88,11 +88,42 @@ app.post('/api/chat', async (req, res) => {
       args: ['bot', botResponse]
     });
 
-    // AI 응답만 반환
+    // 3. 외부 에이전트(안티그래비티)로 메시지 전달 (웹훅 아웃바운드)
+    if (process.env.ANTIGRAVITY_WEBHOOK_URL) {
+      try {
+        await fetch(process.env.ANTIGRAVITY_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+      } catch (err) {
+        console.error('[Webhook Outbound Error]:', err.message);
+      }
+    }
+
     res.json({ success: true, reply: botResponse });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: '메시지 처리 실패' });
+  }
+});
+
+// 외부 에이전트(안티그래비티)가 대시보드로 데이터를 쏘는 웹훅 (인바운드)
+app.post('/api/webhook/inbound', async (req, res) => {
+  const { role, content } = req.body;
+  if (!content) return res.status(400).json({ success: false, error: 'Missing content' });
+  
+  try {
+    const senderRole = role || 'bot'; // 기본적으로 봇 발화로 처리
+    await db.execute({
+      sql: 'INSERT INTO messages (role, content) VALUES (?, ?)',
+      args: [senderRole, content]
+    });
+    console.log(`[Webhook Inbound] ${senderRole}: ${content}`);
+    res.json({ success: true, message: 'Saved successfully.' });
+  } catch (err) {
+    console.error('[Webhook Inbound Error]:', err);
+    res.status(500).json({ success: false, error: '웹훅 저장 실패' });
   }
 });
 

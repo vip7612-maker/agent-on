@@ -49,6 +49,11 @@ async function initDb() {
       });
     } catch(e) {} // 이미 존재하면 조용히 넘어감
     
+    // is_pinned 마이그레이션 (보드 기능 호환)
+    try {
+      await db.execute('ALTER TABLE messages ADD COLUMN is_pinned INTEGER DEFAULT 0');
+    } catch(e) {} // 이미 존재하면 조용히 넘어감
+    
     console.log('[Turso DB] messages 테이블 준비 완료.');
   } catch (err) {
     console.error('[Turso DB] 테이블 초기화 실패:', err);
@@ -187,6 +192,33 @@ app.get('/api/history/:session_date', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: 'Session Fetch Error' });
+  }
+});
+
+// Board 저장/해제 토글
+app.put('/api/board/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const current = await db.execute({ sql: 'SELECT is_pinned FROM messages WHERE id = ?', args: [id] });
+    if (current.rows.length === 0) return res.status(404).json({ success: false });
+    
+    const newVal = current.rows[0].is_pinned ? 0 : 1;
+    await db.execute({ sql: 'UPDATE messages SET is_pinned = ? WHERE id = ?', args: [newVal, id] });
+    res.json({ success: true, is_pinned: newVal });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'DB Error' });
+  }
+});
+
+// Board 리스트 불러오기 (고정된 모든 답변)
+app.get('/api/board', async (req, res) => {
+  try {
+    const result = await db.execute('SELECT * FROM messages WHERE is_pinned = 1 ORDER BY id DESC');
+    res.json({ success: true, messages: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'DB Error' });
   }
 });
 

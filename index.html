@@ -15,7 +15,7 @@
   <div class="app-container">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div class="logo" style="display: flex; align-items: center;">
+        <div class="logo" id="desktopLogoBtn" style="cursor: pointer; display: flex; align-items: center;">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 6"/>
             <path d="M12 6L13.5 10.5L18 12L13.5 13.5L12 18L10.5 13.5L6 12L10.5 10.5L12 6Z" fill="currentColor"/>
@@ -30,6 +30,7 @@
       <div class="sidebar-nav">
         <div class="nav-item active" id="navChat"><iconify-icon icon="mdi:message-outline"></iconify-icon> <span class="nav-label">채팅</span></div>
         <div class="nav-item" id="navHistory"><iconify-icon icon="mdi:history"></iconify-icon> <span class="nav-label">History</span></div>
+        <div class="nav-item" id="navBoard"><iconify-icon icon="mdi:text-box-check-outline"></iconify-icon> <span class="nav-label">Board</span></div>
       </div>
       <div class="sidebar-footer">
         <button class="google-btn" id="googleLoginBtn">
@@ -48,7 +49,7 @@
     <main class="main-content">
       <header class="mobile-header">
         <button class="icon-btn menu-toggle"><iconify-icon icon="mdi:menu"></iconify-icon></button>
-        <div class="logo" style="display: flex; align-items: center;">
+        <div class="logo" id="mobileLogoBtn" style="cursor: pointer; display: flex; align-items: center;">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 6"/>
             <path d="M12 6L13.5 10.5L18 12L13.5 13.5L12 18L10.5 13.5L6 12L10.5 10.5L12 6Z" fill="currentColor"/>
@@ -95,6 +96,17 @@
         </div>
         <div class="history-list" id="historyList">
            <!-- 서버에서 동적으로 리스트가 추가됨 -->
+        </div>
+      </div>
+      
+      <!-- 보드 뷰 화면 컨테이너 -->
+      <div class="board-container" id="boardView" style="display: none; flex: 1; flex-direction: column; padding: 24px; overflow-y: auto; background-color: var(--bg-main);">
+        <div class="board-header" style="margin-bottom: 24px;">
+           <h2 style="font-weight: 600; font-size: 1.5rem; margin-bottom: 8px;">Board</h2>
+           <span style="color: var(--text-muted); font-size: 0.9rem;">클립보드 버튼 옆 핀 아이콘을 눌러 중요한 대화를 모아두세요.</span>
+        </div>
+        <div class="board-list" id="boardList" style="display: flex; flex-direction: column; gap: 24px;">
+           <!-- 동적으로 저장된 답변이 추가됨 -->
         </div>
       </div>
     </main>

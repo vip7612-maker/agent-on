@@ -101,34 +101,6 @@ async function initDb() {
     // Seed initial admin if not exists
     try {
       await db.execute(`INSERT OR IGNORE INTO users (email, name, role) VALUES ('vip7612@gmail.com', 'Admin', 'ADMIN')`);
-      await db.execute(`INSERT OR IGNORE INTO users (email, name, role) VALUES ('vip776@haemill.ms.kr', 'Haemill', 'APPROVED')`);
-      await db.execute(`INSERT OR IGNORE INTO users (email, name, role) VALUES ('vip776@a4k.ai', 'A4K', 'APPROVED')`);
-      
-      const res1 = await db.execute(`SELECT id FROM rooms WHERE name = '그룹챗1'`);
-      if (res1.rows.length === 0) {
-        const roomRes = await db.execute(`INSERT INTO rooms (name, created_by) VALUES ('그룹챗1', 'vip7612@gmail.com') RETURNING id`);
-        const roomId = roomRes.rows[0].id;
-        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip7612@gmail.com']);
-        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@haemill.ms.kr']);
-        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@a4k.ai']);
-      } else {
-        const roomId = res1.rows[0].id;
-        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@haemill.ms.kr']);
-        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@a4k.ai']);
-      }
-      
-      const res2 = await db.execute(`SELECT id FROM rooms WHERE name = '그룹챗2'`);
-      if (res2.rows.length === 0) {
-        const roomRes = await db.execute(`INSERT INTO rooms (name, created_by) VALUES ('그룹챗2', 'vip7612@gmail.com') RETURNING id`);
-        const roomId = roomRes.rows[0].id;
-        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip7612@gmail.com']);
-        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@haemill.ms.kr']);
-        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@a4k.ai']);
-      } else {
-        const roomId = res2.rows[0].id;
-        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@haemill.ms.kr']);
-        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@a4k.ai']);
-      }
     } catch(e) { console.log('Seed skip:', e.message); }
 
     // 마이그레이션 속성들
@@ -167,13 +139,13 @@ app.get('/api/chat', async (req, res) => {
     const sessionDate = getGlobalSessionDate();
     let result;
     if (roomId) {
-      // 그룹챗: 방 전체 메시지 + 발신자 정보 JOIN
+      // 그룹챗: 방 전체 메시지 + 발신자 정보 JOIN (타입 안정성을 위해 int 변환)
       result = await db.execute({
         sql: `SELECT m.*, u.name as sender_name, u.picture as sender_picture 
               FROM messages m 
               LEFT JOIN users u ON m.sender_email = u.email 
               WHERE m.room_id = ? ORDER BY m.id ASC`,
-        args: [roomId]
+        args: [parseInt(roomId, 10)]
       });
     } else if (userEmail) {
       // AiON 1:1 채팅: 해당 사용자의 메시지만
@@ -205,7 +177,7 @@ app.post('/api/chat', async (req, res) => {
     // 사용자 메시지 저장
     await db.execute({
       sql: 'INSERT INTO messages (role, content, session_date, room_id, sender_email) VALUES (?, ?, ?, ?, ?)',
-      args: ['user', message, getGlobalSessionDate(), room_id || null, senderEmail]
+      args: ['user', message, getGlobalSessionDate(), room_id ? parseInt(room_id, 10) : null, senderEmail]
     });
 
     // 그룹챗이면 AI 봇 호출 없이 메시지만 저장하고 종료

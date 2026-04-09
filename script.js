@@ -11,7 +11,7 @@ let isWaitingForBot = false;
 let currentMsgCount = 0;
 let isViewingHistory = false;
 
-const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com'; // TODO: 구글 클라우드 콘솔의 OAuth 클라이언트 ID로 변경 필수
+const GOOGLE_CLIENT_ID = '877998748218-emlbeacavipfdl1od8k61b4034on29n3.apps.googleusercontent.com';
 
 // 구글 OAuth 2.0 로그인 (Implicit Flow)
 function oauthSignIn() {

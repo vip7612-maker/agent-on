@@ -322,7 +322,8 @@ async function syncChats() {
             // 이름
             const myNameSpan = document.createElement('span');
             myNameSpan.style.cssText = 'font-size:0.8rem; font-weight:600; color:var(--text-high);';
-            myNameSpan.textContent = msg.sender_name || (msg.sender_email ? msg.sender_email.split('@')[0] : '나');
+            const displayName = msg.sender_name || (msg.sender_email ? msg.sender_email.split('@')[0] : '알 수 없음');
+            myNameSpan.textContent = `나(${displayName})`;
             myHeaderRow.appendChild(myNameSpan);
             
             // 시간
@@ -923,7 +924,18 @@ window.addEventListener('DOMContentLoaded', () => {
           const un = document.querySelector('.user-name');
           if(un) un.textContent = newName;
           // 환영 문구도 업데이트
-          applyUserInfo(u);
+          const greetingTitle = document.getElementById('welcomeTitle');
+          if (greetingTitle) {
+            const hour = new Date().getHours();
+            let emoji = '☀️', timeText = '좋은 하루입니다';
+            if (hour >= 5 && hour < 12) { emoji = '☀️'; timeText = '좋은 아침입니다'; }
+            else if (hour >= 12 && hour < 14) { emoji = '🌞'; timeText = '활기찬 오후입니다'; }
+            else if (hour >= 14 && hour < 18) { emoji = '☕'; timeText = '좋은 오후입니다'; }
+            else if (hour >= 18 && hour < 22) { emoji = '🌙'; timeText = '좋은 저녁입니다'; }
+            else { emoji = '🌙'; timeText = '좋은 밤입니다'; }
+            const dpName = u.name || u.given_name || '사용자';
+            greetingTitle.textContent = `${emoji} ${timeText}, ${dpName}님`;
+          }
           alert('저장되었습니다.');
         }
       } catch(e) { alert('저장 실패'); }

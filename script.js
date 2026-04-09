@@ -457,6 +457,8 @@ if (navChat && navHistory && navBoard) {
        chatView.style.display = 'flex';
        historyView.style.display = 'none';
        boardView.style.display = 'none';
+       const hgv = document.getElementById('harnessGalleryView');
+       if(hgv) hgv.style.display = 'none';
        const lv = document.getElementById('landingView');
        if(lv) lv.style.display = 'none';
        currentMsgCount = -1; // 강제 새로고침
@@ -466,6 +468,8 @@ if (navChat && navHistory && navBoard) {
        chatView.style.display = 'none';
        historyView.style.display = 'none';
        boardView.style.display = 'none';
+       const hgv2 = document.getElementById('harnessGalleryView');
+       if(hgv2) hgv2.style.display = 'none';
        const lv = document.getElementById('landingView');
        if(lv) lv.style.display = 'flex';
        updateLandingView('chat');
@@ -482,6 +486,8 @@ if (navChat && navHistory && navBoard) {
        historyView.style.display = 'flex';
        chatView.style.display = 'none';
        boardView.style.display = 'none';
+       const hgv3 = document.getElementById('harnessGalleryView');
+       if(hgv3) hgv3.style.display = 'none';
        const lv = document.getElementById('landingView');
        if(lv) lv.style.display = 'none';
        loadHistoryList();
@@ -489,6 +495,8 @@ if (navChat && navHistory && navBoard) {
        chatView.style.display = 'none';
        historyView.style.display = 'none';
        boardView.style.display = 'none';
+       const hgv4 = document.getElementById('harnessGalleryView');
+       if(hgv4) hgv4.style.display = 'none';
        const lv = document.getElementById('landingView');
        if(lv) lv.style.display = 'flex';
        updateLandingView('history');
@@ -505,6 +513,8 @@ if (navChat && navHistory && navBoard) {
        boardView.style.display = 'flex';
        chatView.style.display = 'none';
        historyView.style.display = 'none';
+       const hgv5 = document.getElementById('harnessGalleryView');
+       if(hgv5) hgv5.style.display = 'none';
        const lv = document.getElementById('landingView');
        if(lv) lv.style.display = 'none';
        
@@ -663,7 +673,6 @@ window.addEventListener('DOMContentLoaded', () => {
     adminMenu.addEventListener('click', () => {
       document.getElementById('adminModal').style.display = 'flex';
       loadAdminData();
-      loadAdminHarnesses();
       document.getElementById('userMenuPopup').classList.remove('show');
     });
   }
@@ -871,61 +880,109 @@ window.createHarness = async function() {
   if(data.success) {
     document.getElementById('newHarnessTitle').value = '';
     document.getElementById('newHarnessContent').value = '';
-    loadAdminHarnesses();
+    document.getElementById('harnessCreateForm').style.display = 'none';
+    loadHarnessGallery();
   }
 }
 
-async function loadAdminHarnesses() {
+// 하네스 갤러리 그리드 렌더링 (썸네일 카드)
+async function loadHarnessGallery() {
   const userInfoStr = localStorage.getItem('agentOn_user');
   if(!userInfoStr) return;
   const email = JSON.parse(userInfoStr).email;
+  const isAdmin = (window.currentUserRole === 'ADMIN');
+  const endpoint = isAdmin ? '/api/admin/harnesses' : '/api/harnesses';
+  const headers = isAdmin ? {'User-Email': email} : {};
   try {
-    const res = await fetch('/api/admin/harnesses', { headers: {'User-Email': email} });
+    const res = await fetch(endpoint, { headers });
     const data = await res.json();
-    if(data.success) {
-      document.getElementById('adminHarnessList').innerHTML = data.harnesses.map(h => `
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border:1px solid var(--border-color); border-radius:8px;">
-          <div style="flex:1;">
-            <div style="display:flex; align-items:center; gap:6px;">
-              <iconify-icon icon="lucide:zap" style="color:#f59e0b;"></iconify-icon>
-              <b>${h.title}</b>
-              <span style="font-size:0.75rem; padding:2px 6px; border-radius:4px; background:${h.is_visible?'rgba(16,185,129,0.2)':'rgba(239,68,68,0.2)'}; color:${h.is_visible?'#10b981':'#ef4444'};">${h.is_visible?'노출':'숨김'}</span>
-            </div>
-            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px;">${h.content}</div>
-          </div>
-          <div style="display:flex; gap:4px; flex-shrink:0;">
-            <button onclick="window.toggleHarnessVisibility(${h.id}, '${h.title.replace(/'/g, "\\'") }', \`${h.content.replace(/`/g, '\\`')}\`, ${h.is_visible?0:1})" style="padding:4px 8px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-main); color:var(--text-main); cursor:pointer; font-size:0.8rem;">${h.is_visible?'숨기기':'노출'}</button>
-            <button onclick="window.deleteHarness(${h.id})" style="padding:4px 8px; border-radius:4px; border:1px solid rgba(239,68,68,0.3); background:var(--bg-main); color:#ef4444; cursor:pointer; font-size:0.8rem;">삭제</button>
-          </div>
-        </div>
-      `).join('');
+    const grid = document.getElementById('harnessGalleryGrid');
+    if(!grid) return;
+    if(data.success && data.harnesses && data.harnesses.length > 0) {
+      const colors = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
+      grid.innerHTML = data.harnesses.map(function(h) {
+        var color = colors[h.id % colors.length];
+        var badge = isAdmin ? '<span style="position:absolute;top:8px;right:8px;font-size:0.7rem;padding:2px 6px;border-radius:4px;background:'+(h.is_visible?'rgba(16,185,129,0.2)':'rgba(239,68,68,0.2)')+';color:'+(h.is_visible?'#10b981':'#ef4444')+';">'+(h.is_visible?'노출':'숨김')+'</span>' : '';
+        var btns = isAdmin ? '<div style="display:flex;gap:6px;margin-top:12px;border-top:1px solid var(--border-color);padding-top:10px;"><button onclick="event.stopPropagation();window.toggleHarnessVisibility('+h.id+')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:var(--text-muted);cursor:pointer;font-size:0.8rem;">'+(h.is_visible?'숨기기':'노출')+'</button><button onclick="event.stopPropagation();window.deleteHarness('+h.id+')" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#ef4444;cursor:pointer;font-size:0.8rem;">삭제</button></div>' : '';
+        return '<div class="harness-card" data-id="'+h.id+'" data-visible="'+h.is_visible+'" style="position:relative;padding:20px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-sidebar);cursor:pointer;transition:all 0.2s;overflow:hidden;">'+badge+'<div style="width:48px;height:48px;border-radius:12px;background:'+color+'18;display:flex;align-items:center;justify-content:center;margin-bottom:14px;"><iconify-icon icon="lucide:zap" style="font-size:1.4rem;color:'+color+';"></iconify-icon></div><div style="font-weight:600;font-size:1rem;margin-bottom:6px;">'+h.title+'</div><div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">'+h.content+'</div>'+btns+'</div>';
+      }).join('');
+      grid.querySelectorAll('.harness-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+          var hId = parseInt(card.dataset.id);
+          var vis = card.dataset.visible;
+          var harness = data.harnesses.find(function(h){return h.id === hId;});
+          if(harness && (vis === '1' || vis === 1)) {
+            selectHarness(harness);
+            document.getElementById('navChat').click();
+          }
+        });
+      });
+    } else {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-muted);"><iconify-icon icon="lucide:inbox" style="font-size:3rem;margin-bottom:12px;display:block;"></iconify-icon><div style="font-size:1.1rem;margin-bottom:8px;">등록된 하네스가 없습니다</div><div style="font-size:0.9rem;">'+(isAdmin?'"+ 새 하네스" 버튼을 눌러 첫 하네스를 만들어보세요.':'관리자가 하네스를 등록하면 여기에 표시됩니다.')+'</div></div>';
     }
-  } catch(e) {}
+  } catch(e) { console.error('Gallery load failed:', e); }
 }
 
-window.toggleHarnessVisibility = async function(id, title, content, newVisible) {
-  const userInfoStr = localStorage.getItem('agentOn_user');
+// 로고 버튼 → 하네스 갤러리 뷰 열기
+function initHarnessGalleryBtn() {
+  var btn = document.getElementById('harnessGalleryBtn');
+  if(!btn) return;
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var gv = document.getElementById('harnessGalleryView');
+    var cv = document.getElementById('chatView');
+    var hv = document.getElementById('historyView');
+    var bv = document.getElementById('boardView');
+    var lv = document.getElementById('landingView');
+    if(cv) cv.style.display = 'none';
+    if(hv) hv.style.display = 'none';
+    if(bv) bv.style.display = 'none';
+    if(lv) lv.style.display = 'none';
+    var nc = document.getElementById('navChat');
+    var nh = document.getElementById('navHistory');
+    var nb = document.getElementById('navBoard');
+    if(nc) nc.classList.remove('active');
+    if(nh) nh.classList.remove('active');
+    if(nb) nb.classList.remove('active');
+    if(gv) gv.style.display = 'flex';
+    var addBtn = document.getElementById('addHarnessBtn');
+    if(addBtn && window.currentUserRole === 'ADMIN') {
+      addBtn.style.display = 'block';
+      addBtn.onclick = function() { document.getElementById('harnessCreateForm').style.display = 'block'; };
+    }
+    isViewingHistory = true;
+    loadHarnessGallery();
+  });
+}
+
+window.toggleHarnessVisibility = async function(id) {
+  var userInfoStr = localStorage.getItem('agentOn_user');
   if(!userInfoStr) return;
-  const email = JSON.parse(userInfoStr).email;
+  var email = JSON.parse(userInfoStr).email;
+  var listRes = await fetch('/api/admin/harnesses', { headers: {'User-Email': email} });
+  var listData = await listRes.json();
+  var h = listData.harnesses.find(function(x){return x.id === id;});
+  if(!h) return;
   await fetch('/api/admin/harnesses/' + id, {
     method: 'PUT',
     headers: {"Content-Type": "application/json", "User-Email": email},
-    body: JSON.stringify({ title, content, is_visible: newVisible })
+    body: JSON.stringify({ title: h.title, content: h.content, is_visible: h.is_visible ? 0 : 1 })
   });
-  loadAdminHarnesses();
+  loadHarnessGallery();
 }
 
 window.deleteHarness = async function(id) {
   if(!confirm('이 하네스를 삭제하시겠습니까?')) return;
-  const userInfoStr = localStorage.getItem('agentOn_user');
+  var userInfoStr = localStorage.getItem('agentOn_user');
   if(!userInfoStr) return;
-  const email = JSON.parse(userInfoStr).email;
+  var email = JSON.parse(userInfoStr).email;
   await fetch('/api/admin/harnesses/' + id, {
     method: 'DELETE',
     headers: {'User-Email': email}
   });
-  loadAdminHarnesses();
+  loadHarnessGallery();
 }
 
 // 초기화
 initHarnessPopup();
+initHarnessGalleryBtn();

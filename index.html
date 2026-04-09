@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Serif+KR:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=2.8" />
+  <link rel="stylesheet" href="style.css?v=3.0" />
   <!-- 아이콘 처리를 위해 Iconify 사용 -->
   <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
 </head>
@@ -46,7 +46,12 @@
             </div>
           </div>
           <div class="user-profile-icons" style="display: flex; align-items: center; gap: 6px; color: var(--text-muted);">
-            <iconify-icon icon="lucide:download" style="font-size: 0.95rem; padding: 4px; border: 1px solid var(--border-color); border-radius: 6px;"></iconify-icon>
+            <button id="harnessGalleryBtn" style="background:none; border:1px solid var(--border-color); border-radius:6px; padding:3px 4px; cursor:pointer; display:flex; align-items:center; justify-content:center;" aria-label="하네스 갤러리">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 5L12 12L5 19M12 12L19 19" stroke="var(--text-muted)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M15.5 8.5L15.76 4.77A3.25 3.25 0 1 1 19.23 8.24Z" fill="#ef4444" />
+              </svg>
+            </button>
             <iconify-icon icon="lucide:chevrons-up-down" style="font-size: 1rem;"></iconify-icon>
           </div>
         </div>
@@ -182,6 +187,33 @@
            <!-- 동적으로 저장된 답변이 추가됨 -->
         </div>
       </div>
+
+      <!-- 하네스 갤러리 뷰 -->
+      <div id="harnessGalleryView" style="display: none; flex: 1; flex-direction: column; padding: 24px; overflow-y: auto; background-color: var(--bg-main);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+          <div>
+            <h2 style="font-weight: 600; font-size: 1.5rem; margin-bottom: 4px; display:flex; align-items:center; gap:8px;">
+              <iconify-icon icon="lucide:zap" style="color:#f59e0b;"></iconify-icon> 하네스 갤러리
+            </h2>
+            <span style="color: var(--text-muted); font-size: 0.9rem;">채팅 시 적용할 지시문 템플릿을 관리하세요.</span>
+          </div>
+          <button id="addHarnessBtn" style="display:none; padding:8px 16px; border-radius:8px; background:linear-gradient(135deg, #f59e0b, #ef4444); border:none; color:#fff; cursor:pointer; font-weight:500; font-size:0.9rem;">+ 새 하네스</button>
+        </div>
+
+        <!-- 신규 하네스 생성 폼 (어드민만) -->
+        <div id="harnessCreateForm" style="display:none; margin-bottom:24px; padding:20px; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-sidebar);">
+          <h3 style="margin-bottom:12px; font-size:1rem;">새 하네스 생성</h3>
+          <input type="text" id="newHarnessTitle" placeholder="하네스 제목 (예: 보고서 작성, 번역 요청)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); margin-bottom:8px; box-sizing:border-box;" />
+          <textarea id="newHarnessContent" placeholder="에이전트에게 전달될 지시문을 입력하세요..." rows="4" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); resize:vertical; box-sizing:border-box;"></textarea>
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+            <button onclick="document.getElementById('harnessCreateForm').style.display='none'" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-muted); cursor:pointer;">취소</button>
+            <button onclick="window.createHarness()" style="padding:8px 16px; border-radius:8px; background:linear-gradient(135deg, #f59e0b, #ef4444); border:none; color:#fff; cursor:pointer; font-weight:500;">생성</button>
+          </div>
+        </div>
+
+        <!-- 갤러리 그리드 -->
+        <div id="harnessGalleryGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:16px;"></div>
+      </div>
     </main>
   </div>
   
@@ -202,21 +234,9 @@
         <h3>사무국 멤버 관리</h3>
         <div id="adminRoomMembersList" style="margin-top:12px; display:flex; flex-direction:column; gap:8px;"></div>
       </div>
-      
-      <div>
-        <h3>하네스 관리</h3>
-        <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
-          <div style="display:flex; gap:8px; margin-bottom:8px;">
-            <input type="text" id="newHarnessTitle" placeholder="하네스 제목" style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-main);" />
-          </div>
-          <textarea id="newHarnessContent" placeholder="하네스 내용 (에이전트에게 전달될 지시문)" rows="3" style="padding:8px; border-radius:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-main); resize:vertical;"></textarea>
-          <button onclick="window.createHarness()" style="padding:8px 16px; border-radius:8px; background:var(--user-msg); border:none; cursor:pointer; align-self:flex-end;">생성</button>
-        </div>
-        <div id="adminHarnessList" style="margin-top:16px; display:flex; flex-direction:column; gap:8px;"></div>
-      </div>
     </div>
   </div>
 
-  <script src="script.js?v=2.8"></script>
+  <script src="script.js?v=3.0"></script>
 </body>
 </html>

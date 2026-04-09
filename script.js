@@ -549,12 +549,12 @@ inputEl.addEventListener('focus', () => {
 });
 
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', () => {
-    if (document.activeElement === inputEl) {
-      window.scrollTo(0, 0);
-      document.body.scrollTop = 0;
-    }
-  });
+  const updateViewportHeight = () => {
+    document.body.style.height = `${window.visualViewport.height}px`;
+    window.scrollTo(0, 0);
+  };
+  window.visualViewport.addEventListener('resize', updateViewportHeight);
+  updateViewportHeight();
 }
 
 // iOS 스크롤 바운스 방지: 허용된 스크롤 가능 영역 외의 터치 스크롤 차단

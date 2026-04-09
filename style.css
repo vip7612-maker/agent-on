@@ -30,7 +30,7 @@ html, body {
 
 .app-container {
   display: flex;
-  height: 100dvh;
+  height: 100%;
 }
 
 /* 좌측 사이드바 */

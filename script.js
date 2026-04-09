@@ -53,7 +53,7 @@ if (urlParams.has('room_id')) {
 }
 
 window.hideAllViews = function() {
-  const views = ['chatView', 'historyView', 'boardView', 'harnessGalleryView', 'automationGalleryView', 'adminSettingsView', 'accountSettingsView', 'landingView'];
+  const views = ['chatView', 'historyView', 'boardView', 'harnessGalleryView', 'automationGalleryView', 'adminSettingsView', 'accountSettingsView', 'landingView', 'userWebhookView'];
   views.forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = 'none';
@@ -1150,6 +1150,16 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // --- 나의 웹훅 설정 연결 ---
+  const userWebhookMenu = document.getElementById('userWebhookMenu');
+  if(userWebhookMenu) {
+    userWebhookMenu.addEventListener('click', () => {
+      showMainView('userWebhookView');
+      loadUserWebhook();
+      document.getElementById('userMenuPopup').classList.remove('show');
+    });
+  }
+
   // 관리자 서브 메뉴 탭 전환
   document.querySelectorAll('.admin-nav-item').forEach(item => {
     item.addEventListener('click', () => {
@@ -1543,74 +1553,44 @@ function renderDropdown(roomId, query, eligibleUsers, existingEmails) {
   });
 }
   
-  // 4. 웹훅 설정 로드 (loadAdminData에서 분리된 블록)
-  (async function() {
-    var email = (function(){ var u = localStorage.getItem('agentOn_user'); return u ? JSON.parse(u).email : ''; })();
-    if (!email) return;
-    try {
-      var setRes = await fetch('/api/admin/settings', { headers: {'User-Email': email} });
-      var setData = await setRes.json();
-      if(setData.success && setData.settings) {
-        var aionUrl = document.getElementById('webhookAionUrl');
-        var antiUrl = document.getElementById('webhookAntigravityUrl');
-        if(aionUrl) aionUrl.value = setData.settings['AION_WEBHOOK_URL'] || '';
-        if(antiUrl) antiUrl.value = setData.settings['ANTIGRAVITY_WEBHOOK_URL'] || '';
-        if (typeof window.updateGeneratedPrompt === 'function') window.updateGeneratedPrompt();
-      }
-    } catch(e) { console.error(e); }
-  })();
-
-window.saveWebhookSettings = async function() {
+  // 4. 나의 웹훅 설정 로드
+window.loadUserWebhook = async function() {
   const email = getCurrentUserEmail();
-  const aionUrl = document.getElementById('webhookAionUrl').value.trim();
-  const antiUrl = document.getElementById('webhookAntigravityUrl').value.trim();
-  
-  const settings = {
-    AION_WEBHOOK_URL: aionUrl,
-    ANTIGRAVITY_WEBHOOK_URL: antiUrl
-  };
-  
-  const res = await fetch('/api/admin/settings', {
-    method: 'POST',
-    headers: {"Content-Type": "application/json", "User-Email": email},
-    body: JSON.stringify({ settings })
-  });
-  const data = await res.json();
-  if(data.success) {
-    alert('웹훅 설정이 저장되었습니다.');
-    window.updateGeneratedPrompt();
-  } else {
-    alert('저장 실패');
+  if(!email) return;
+  try {
+    const res = await fetch('/api/user/webhook', {
+      headers: { 'User-Email': email }
+    });
+    const data = await res.json();
+    const inputEl = document.getElementById('userWebhookUrlInput');
+    if(inputEl) inputEl.value = data.webhook_url || '';
+  } catch(err) {
+    console.error('Webhook load error:', err);
   }
 }
 
-window.updateGeneratedPrompt = function() {
-  var aionUrlVal = document.getElementById('webhookAionUrl').value.trim() || '{AiON_챗팅룸_주소}';
-  var antiUrlVal = document.getElementById('webhookAntigravityUrl').value.trim() || '{Antigravity_웹훅_주소}';
-  var prompt = [
-    '당신은 현재 이 서버에 상주하며, AiON 웹앱과의 웹훅 브릿지 및 명령 수행 임무를 담당하는 안티그래비티 에이전트입니다.',
-    '',
-    '[설정 정보]',
-    '- 수신용 웹훅 주소(당신의 주소): ' + antiUrlVal,
-    '- 결과 반환용 AiON 채팅룸 웹훅 주소: ' + aionUrlVal,
-    '',
-    '[핵심 강제 조항]',
-    '1. 수신용 웹훅 주소로 POST 요청이 들어오는지 항상 Listen 하십시오.',
-    '2. 당신에게 수신되는 모든 웹훅 데이터는 사용자가 AiON 채팅 앱에서 당신에게 전달한 공식적인 메세지입니다.',
-    '3. 메세지를 수신하면 즉시 작업을 수행하십시오.',
-    '4. 작업 완료 후 curl -X POST 로 결과를 회신하십시오.'
-  ].join('\\n');
-  var ta = document.getElementById('webhookGeneratedPrompt');
-  if(ta) ta.value = prompt;
-}
-
-window.copyWebhookPrompt = function() {
-  const ta = document.getElementById('webhookGeneratedPrompt');
-  if(!ta) return;
-  ta.select();
-  document.execCommand('copy');
-  alert('프롬프트가 복사되었습니다. 안티그래비티 에이전트에게 붙여넣으세요!');
-}
+document.getElementById('saveUserWebhookBtn')?.addEventListener('click', async () => {
+  const email = getCurrentUserEmail();
+  if(!email) return alert('로그인이 필요합니다.');
+  
+  const webhookUrl = document.getElementById('userWebhookUrlInput').value.trim();
+  try {
+    const res = await fetch('/api/user/webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Email': email },
+      body: JSON.stringify({ webhook_url: webhookUrl })
+    });
+    const data = await res.json();
+    if(data.success) {
+      alert('나의 웹훅 설정이 저장되었습니다.');
+    } else {
+      alert('저장 실패: ' + data.error);
+    }
+  } catch(err) {
+    console.error('Webhook save error:', err);
+    alert('저장 중 오류 발생');
+  }
+});
 
 // 사용자 승인/해제
 window.approveUser = async function(targetEmail, role) {

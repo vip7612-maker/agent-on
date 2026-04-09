@@ -542,7 +542,6 @@ async function handleSend() {
     // POST 직후 즉각 1회 동기화
     syncChats();
   } catch (err) {
-  } catch (err) {
     console.error(err);
   }
 }

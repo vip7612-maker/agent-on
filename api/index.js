@@ -21,7 +21,13 @@ const db = createClient({
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
-// 테이블 초기화 (테스트 하네스 규칙 준수)
+// 5:00 AM (KST) 기준으로 세션 날짜를 계산하는 함수
+function getGlobalSessionDate() {
+  const date = new Date(new Date().getTime() + (9 - 5) * 60 * 60 * 1000);
+  return date.toISOString().split('T')[0];
+}
+
+// 테이블 초기화
 async function initDb() {
   try {
     await db.execute(`
@@ -29,9 +35,20 @@ async function initDb() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         role TEXT NOT NULL,
         content TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        session_date TEXT
       )
     `);
+    
+    // session_date 마이그레이션 (기존 데이터 호환)
+    try {
+      await db.execute('ALTER TABLE messages ADD COLUMN session_date TEXT');
+      await db.execute({
+        sql: 'UPDATE messages SET session_date = ? WHERE session_date IS NULL',
+        args: [getGlobalSessionDate()]
+      });
+    } catch(e) {} // 이미 존재하면 조용히 넘어감
+    
     console.log('[Turso DB] messages 테이블 준비 완료.');
   } catch (err) {
     console.error('[Turso DB] 테이블 초기화 실패:', err);
@@ -39,10 +56,14 @@ async function initDb() {
 }
 initDb();
 
-// 기존 대화 이력 가져오기
+// 기존 대화 이력 가져오기 (오직 오늘 세션만)
 app.get('/api/chat', async (req, res) => {
   try {
-    const result = await db.execute('SELECT * FROM messages ORDER BY id ASC');
+    const sessionDate = getGlobalSessionDate();
+    const result = await db.execute({
+      sql: 'SELECT * FROM messages WHERE session_date = ? ORDER BY id ASC',
+      args: [sessionDate]
+    });
     res.json({ success: true, messages: result.rows });
   } catch (err) {
     console.error(err);
@@ -61,8 +82,8 @@ app.post('/api/chat', async (req, res) => {
   try {
     // 사용자 메시지 저장
     await db.execute({
-      sql: 'INSERT INTO messages (role, content) VALUES (?, ?)',
-      args: ['user', message]
+      sql: 'INSERT INTO messages (role, content, session_date) VALUES (?, ?, ?)',
+      args: ['user', message, getGlobalSessionDate()]
     });
 
     // 1. 외부 에이전트(다른 맥미니의 안티그래비티) 연동
@@ -100,8 +121,8 @@ app.post('/api/chat', async (req, res) => {
     
     // AI 응답 저장
     await db.execute({
-      sql: 'INSERT INTO messages (role, content) VALUES (?, ?)',
-      args: ['bot', botResponse]
+      sql: 'INSERT INTO messages (role, content, session_date) VALUES (?, ?, ?)',
+      args: ['bot', botResponse, getGlobalSessionDate()]
     });
 
     res.json({ success: true, reply: botResponse });
@@ -119,14 +140,53 @@ app.post('/api/webhook/inbound', async (req, res) => {
   try {
     const senderRole = role || 'bot'; // 기본적으로 봇 발화로 처리
     await db.execute({
-      sql: 'INSERT INTO messages (role, content) VALUES (?, ?)',
-      args: [senderRole, content]
+      sql: 'INSERT INTO messages (role, content, session_date) VALUES (?, ?, ?)',
+      args: [senderRole, content, getGlobalSessionDate()]
     });
     console.log(`[Webhook Inbound] ${senderRole}: ${content}`);
     res.json({ success: true, message: 'Saved successfully.' });
   } catch (err) {
     console.error('[Webhook Inbound Error]:', err);
     res.status(500).json({ success: false, error: '웹훅 저장 실패' });
+  }
+});
+
+// 과거 세션 리스트 불러오기 (History)
+app.get('/api/history', async (req, res) => {
+  try {
+    const todaySession = getGlobalSessionDate();
+    const result = await db.execute({
+      sql: `
+        SELECT session_date, 
+               MAX(created_at) as last_created,
+               (SELECT content FROM messages m2 WHERE m2.session_date = m1.session_date AND m2.role = 'user' ORDER BY id ASC LIMIT 1) as preview_content,
+               COUNT(*) as msg_count
+        FROM messages m1
+        WHERE session_date != ?
+        GROUP BY session_date
+        ORDER BY session_date DESC
+      `,
+      args: [todaySession]
+    });
+    res.json({ success: true, history: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'History Fetch Error' });
+  }
+});
+
+// 특정 과거 세션 내용 불러오기
+app.get('/api/history/:session_date', async (req, res) => {
+  try {
+    const { session_date } = req.params;
+    const result = await db.execute({
+      sql: 'SELECT * FROM messages WHERE session_date = ? ORDER BY id ASC',
+      args: [session_date]
+    });
+    res.json({ success: true, messages: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Session Fetch Error' });
   }
 });
 

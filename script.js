@@ -9,6 +9,7 @@ const sidebar = document.querySelector('.sidebar');
 
 let isWaitingForBot = false;
 let currentMsgCount = 0;
+let isViewingHistory = false;
 
 const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com'; // TODO: 구글 클라우드 콘솔의 OAuth 클라이언트 ID로 변경 필수
 
@@ -92,6 +93,8 @@ async function checkGoogleLogin() {
 
 // 대화 내역 실시간 동기화 (폴링 기법)
 async function syncChats() {
+  if (isViewingHistory) return; // 히스토리 화면이거나 과거 대화를 볼 때는 중단
+  
   try {
     const res = await fetch('/api/chat');
     const data = await res.json();
@@ -247,6 +250,109 @@ function updateGreeting() {
   }
 
   greetingTitle.textContent = `${icon} ${greeting}, 교장님`;
+}
+
+// History 네비게이션 제어
+const navChat = document.getElementById('navChat');
+const navHistory = document.getElementById('navHistory');
+const chatView = document.getElementById('chatView');
+const historyView = document.getElementById('historyView');
+const historyList = document.getElementById('historyList');
+
+function timeSince(dateString) {
+  // SQLite CURRENT_TIMESTAMP is UTC
+  const date = new Date(dateString.replace(' ', 'T') + 'Z');
+  const seconds = Math.floor((new Date() - date) / 1000);
+  let interval = seconds / 31536000;
+  if (interval > 1) return Math.floor(interval) + "년 전";
+  interval = seconds / 2592000;
+  if (interval > 1) return Math.floor(interval) + "개월 전";
+  interval = seconds / 86400;
+  if (interval > 1) return Math.floor(interval) + "일 전";
+  interval = seconds / 3600;
+  if (interval > 1) return Math.floor(interval) + "시간 전";
+  interval = seconds / 60;
+  if (interval > 1) return Math.floor(interval) + "분 전";
+  return Math.floor(seconds) + "초 전";
+}
+
+async function loadHistoryList() {
+  if (!historyList) return;
+  try {
+    historyList.innerHTML = '<div style="padding:16px;color:var(--text-muted);">과거 대화 불러오는 중...</div>';
+    const res = await fetch('/api/history');
+    const data = await res.json();
+    historyList.innerHTML = '';
+    
+    if (data.history.length === 0) {
+      historyList.innerHTML = '<div style="padding:16px;color:var(--text-muted);">(아직 이전 날짜의 채팅 기록이 없습니다. 오늘 대화는 내일 오전 5시 이후에 자동 이관됩니다.)</div>';
+      return;
+    }
+    
+    data.history.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      
+      const title = item.preview_content || '새로운 대화';
+      const metaText = `마지막 메시지: ${timeSince(item.last_created)} · 총 ${item.msg_count}개`;
+      
+      div.innerHTML = `
+        <div class="history-title">${title}</div>
+        <div class="history-meta">${metaText}</div>
+      `;
+      div.onclick = async () => {
+        // 클릭 시 해당 과거 대화 로드
+        navChat.classList.add('active');
+        navHistory.classList.remove('active');
+        chatView.style.display = 'flex';
+        historyView.style.display = 'none';
+        isViewingHistory = true; // 과거 모드 (폴링 중단)
+        
+        messagesEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);">과거 세션 불러오는 중...</div>';
+        welcomeScreen.style.display = 'none';
+        messagesEl.style.display = 'block';
+        
+        try {
+          const hRes = await fetch('/api/history/' + item.session_date);
+          const hData = await hRes.json();
+          messagesEl.innerHTML = `<div style="text-align:center; padding:16px 0 24px; font-size:0.85rem; color:var(--text-muted);">---- [ ${item.session_date} ] 과거 대화 내역입니다 ----</div>`;
+          
+          hData.messages.forEach(msg => {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${msg.role}`;
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = msg.content;
+            msgDiv.appendChild(contentDiv);
+            messagesEl.appendChild(msgDiv);
+          });
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        } catch(e) { console.error(e); }
+      };
+      historyList.appendChild(div);
+    });
+  } catch (err) { console.error(err); }
+}
+
+if (navChat && navHistory) {
+  navChat.addEventListener('click', () => {
+    isViewingHistory = false;
+    navChat.classList.add('active');
+    navHistory.classList.remove('active');
+    chatView.style.display = 'flex';
+    historyView.style.display = 'none';
+    currentMsgCount = -1; // 강제 새로고침
+    syncChats();
+  });
+  
+  navHistory.addEventListener('click', () => {
+    isViewingHistory = true;
+    navHistory.classList.add('active');
+    navChat.classList.remove('active');
+    historyView.style.display = 'flex';
+    chatView.style.display = 'none';
+    loadHistoryList();
+  });
 }
 
 // 앱 실행 시 구동 로직

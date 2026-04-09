@@ -264,18 +264,59 @@ async function syncChats() {
       data.messages.forEach(msg => {
         const msgDiv = document.createElement('div');
         
-        // 그룹챗: 모든 메시지를 발신자 기준으로 정렬 (내가 보낸 건 user, 남이 보낸 건 bot 스타일)
+        // 그룹챗: 슬랙 스타일 (아바타 + 이름 + 시간 + 내용)
         if (currentRoomId) {
-          const myEmail = localStorage.getItem('agentOn_user') ? JSON.parse(localStorage.getItem('agentOn_user')).email : '';
+          const myEmail = getCurrentUserEmail();
           const isMe = msg.sender_email === myEmail;
           msgDiv.className = `message ${isMe ? 'user' : 'bot'}`;
           
-          // 상대방 메시지면 발신자 이름 표시
-          if (!isMe && msg.sender_email) {
-            const senderLabel = document.createElement('div');
-            senderLabel.style.cssText = 'font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; font-weight:500;';
-            senderLabel.textContent = msg.sender_email.split('@')[0];
-            msgDiv.appendChild(senderLabel);
+          // 상대방 메시지: 아바타 + 이름 + 시간
+          if (!isMe) {
+            const headerRow = document.createElement('div');
+            headerRow.style.cssText = 'display:flex; align-items:center; gap:8px; margin-bottom:6px;';
+            
+            // 프로필 아바타
+            const avatar = document.createElement('div');
+            avatar.style.cssText = 'width:28px; height:28px; border-radius:50%; flex-shrink:0; overflow:hidden; background:var(--bg-input); display:flex; align-items:center; justify-content:center; font-size:0.7rem; color:var(--text-high);';
+            if (msg.sender_picture) {
+              avatar.innerHTML = `<img src="${msg.sender_picture}" style="width:100%;height:100%;object-fit:cover;" alt="">`;
+            } else {
+              const sName = msg.sender_name || msg.sender_email || '?';
+              avatar.textContent = sName.charAt(0).toUpperCase();
+            }
+            headerRow.appendChild(avatar);
+            
+            // 이름
+            const nameSpan = document.createElement('span');
+            nameSpan.style.cssText = 'font-size:0.8rem; font-weight:600; color:var(--text-high);';
+            nameSpan.textContent = msg.sender_name || (msg.sender_email ? msg.sender_email.split('@')[0] : '알 수 없음');
+            headerRow.appendChild(nameSpan);
+            
+            // 시간
+            const timeSpan = document.createElement('span');
+            timeSpan.style.cssText = 'font-size:0.7rem; color:var(--text-muted);';
+            if (msg.created_at) {
+              const d = new Date(msg.created_at + 'Z');
+              const h = d.getHours();
+              const m = String(d.getMinutes()).padStart(2, '0');
+              const ampm = h < 12 ? '오전' : '오후';
+              timeSpan.textContent = `${ampm} ${h % 12 || 12}:${m}`;
+            }
+            headerRow.appendChild(timeSpan);
+            
+            msgDiv.appendChild(headerRow);
+          } else {
+            // 내 메시지: 시간만 표시
+            const myTimeRow = document.createElement('div');
+            myTimeRow.style.cssText = 'font-size:0.7rem; color:var(--text-muted); margin-bottom:4px; text-align:right;';
+            if (msg.created_at) {
+              const d = new Date(msg.created_at + 'Z');
+              const h = d.getHours();
+              const m = String(d.getMinutes()).padStart(2, '0');
+              const ampm = h < 12 ? '오전' : '오후';
+              myTimeRow.textContent = `${ampm} ${h % 12 || 12}:${m}`;
+            }
+            msgDiv.appendChild(myTimeRow);
           }
         } else {
           msgDiv.className = `message ${msg.role}`;
@@ -838,7 +879,7 @@ async function initUserBackend(userInfo) {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ email: userInfo.email, name: userInfo.name })
+      body: JSON.stringify({ email: userInfo.email, name: userInfo.name, picture: userInfo.picture || '' })
     });
     const data = await res.json();
     if(data.success) {

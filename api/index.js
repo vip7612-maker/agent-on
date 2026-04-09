@@ -137,6 +137,7 @@ async function initDb() {
     try { await db.execute('ALTER TABLE messages ADD COLUMN is_pinned INTEGER DEFAULT 0'); } catch(e){}
     try { await db.execute('ALTER TABLE messages ADD COLUMN room_id INTEGER NULL'); } catch(e){}
     try { await db.execute('ALTER TABLE messages ADD COLUMN sender_email TEXT NULL'); } catch(e){}
+    try { await db.execute('ALTER TABLE users ADD COLUMN picture TEXT NULL'); } catch(e){}
     // 기존 데이터 마이그레이션: sender_email이 없는 ONAi 채팅 메시지를 최초 관리자 계정으로 귀속
     try { await db.execute(`UPDATE messages SET sender_email = 'vip7612@gmail.com' WHERE sender_email IS NULL AND room_id IS NULL`); } catch(e){}
 
@@ -155,9 +156,12 @@ app.get('/api/chat', async (req, res) => {
     const sessionDate = getGlobalSessionDate();
     let result;
     if (roomId) {
-      // 그룹챗: 방 전체 메시지
+      // 그룹챗: 방 전체 메시지 + 발신자 정보 JOIN
       result = await db.execute({
-        sql: 'SELECT * FROM messages WHERE room_id = ? ORDER BY id ASC',
+        sql: `SELECT m.*, u.name as sender_name, u.picture as sender_picture 
+              FROM messages m 
+              LEFT JOIN users u ON m.sender_email = u.email 
+              WHERE m.room_id = ? ORDER BY m.id ASC`,
         args: [roomId]
       });
     } else if (userEmail) {
@@ -362,13 +366,20 @@ app.get('/api/board', async (req, res) => {
 
 // 로그인 (사용자 등록)
 app.post('/api/auth/login', async (req, res) => {
-  const { email, name } = req.body;
+  const { email, name, picture } = req.body;
   if(!email) return res.status(400).json({ error: 'Email required' });
   try {
     await db.execute({
       sql: `INSERT OR IGNORE INTO users (email, name, role) VALUES (?, ?, 'PENDING')`,
       args: [email, name || email.split('@')[0]]
     });
+    // 이름과 프로필 사진 업데이트
+    if (name) {
+      await db.execute({ sql: 'UPDATE users SET name = ? WHERE email = ?', args: [name, email] });
+    }
+    if (picture) {
+      await db.execute({ sql: 'UPDATE users SET picture = ? WHERE email = ?', args: [picture, email] });
+    }
     const user = await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] });
     res.json({ success: true, user: user.rows[0] });
   } catch(e) {

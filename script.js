@@ -512,6 +512,26 @@ if (window.visualViewport) {
   });
 }
 
+// iOS 스크롤 바운스 방지: 허용된 스크롤 가능 영역 외의 터치 스크롤 차단
+document.addEventListener('touchmove', function(e) {
+  let target = e.target;
+  while (target && target !== document.body) {
+    if (
+      (target.classList && target.classList.contains('messages')) ||
+      (target.classList && target.classList.contains('history-container')) ||
+      (target.classList && target.classList.contains('history-list')) ||
+      target.id === 'harnessPopup' ||
+      target.hasAttribute('contenteditable')
+    ) {
+      // 스크롤 허용 요소
+      return; 
+    }
+    target = target.parentNode;
+  }
+  // 그 외 영역 스크롤 방지
+  e.preventDefault();
+}, { passive: false });
+
 if (menuToggle && sidebar) {
   menuToggle.addEventListener('click', () => {
     sidebar.classList.toggle('open');

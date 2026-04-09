@@ -244,10 +244,10 @@ async function syncChats() {
         messagesEl.style.display = 'none';
       }
       
-      // 방 헤더 UI 업데이트
+      // 방 헤더 UI 업데이트 (그룹챗이면 항상 표시)
       const chatRoomHeader = document.getElementById('chatRoomHeader');
       if (chatRoomHeader) {
-        if (currentRoomId && currentMsgCount > 0) {
+        if (currentRoomId) {
           chatRoomHeader.style.display = 'flex';
         } else {
           chatRoomHeader.style.display = 'none';
@@ -534,8 +534,15 @@ if (navChat && navHistory && navBoard) {
        boardView.style.display = 'none';
        const hgv = document.getElementById('harnessGalleryView');
        if(hgv) hgv.style.display = 'none';
+       const agv = document.getElementById('automationGalleryView');
+       if(agv) agv.style.display = 'none';
        const lv = document.getElementById('landingView');
        if(lv) lv.style.display = 'none';
+       
+       // 메시지 영역 즉시 초기화 (그룹챗 잔류 방지)
+       messagesEl.innerHTML = '';
+       messagesEl.style.display = 'none';
+       welcomeScreen.style.display = 'flex';
        currentMsgCount = -1; // 강제 새로고침
        
        // 타이틀 기본값 변경
@@ -830,25 +837,36 @@ async function fetchMyRooms(email) {
         `).join('');
         container.querySelectorAll('.group-room-btn').forEach(btn => {
           btn.addEventListener('click', () => {
+            // 1. 상태 초기화
             currentRoomId = btn.getAttribute('data-id');
             const rName = btn.innerText.trim();
-            currentMsgCount = -1; // 강제 새로고침 유도
+            currentMsgCount = -1;
+            
+            // 2. 메시지 영역 즉시 비우기 (이전 ONAi 채팅 잔류 방지)
+            messagesEl.innerHTML = '';
+            messagesEl.style.display = 'none';
+            welcomeScreen.style.display = 'flex';
+            
+            // 3. 뷰 전환 (showMainView는 isViewingHistory=true로 설정)
             showMainView('chatView');
             
-            // 그룹챗 메뉴 활성화 (기존 활성화 클래스 제거)
+            // 4. 그룹챗이므로 isViewingHistory를 다시 false로 해제 (syncChats 작동 필수)
+            isViewingHistory = false;
+            
+            // 5. 메뉴 활성화 표시
             container.querySelectorAll('.group-room-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('navChat').classList.remove('active');
             btn.classList.add('active');
             
-            // 환영 문구 및 타이틀 변경
+            // 6. 환영 문구 및 방 헤더 설정
             const subTitleEl = document.querySelector('.welcome-subtitle');
             if(subTitleEl) subTitleEl.innerText = rName + ' 채팅방에 오신 것을 환영합니다';
-            
             const chatRoomTitle = document.getElementById('chatRoomTitle');
             if(chatRoomTitle) chatRoomTitle.innerText = rName;
             const chatRoomHeader = document.getElementById('chatRoomHeader');
-            if(chatRoomHeader) chatRoomHeader.style.display = 'none'; // syncChats에서 메시지 있으면 보여줌
+            if(chatRoomHeader) chatRoomHeader.style.display = 'flex';
             
+            // 7. 해당 방의 메시지 로드
             syncChats();
           });
         });

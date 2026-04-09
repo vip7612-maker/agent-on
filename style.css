@@ -219,6 +219,7 @@ html, body {
   background-color: var(--bg-message-bot);
   padding: 8px 0;
   max-width: 100%;
+  white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: break-word;
 }

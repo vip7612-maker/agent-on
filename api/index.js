@@ -110,6 +110,11 @@ async function initDb() {
         const roomId = roomRes.rows[0].id;
         await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip7612@gmail.com']);
         await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@haemill.ms.kr']);
+        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@a4k.ai']);
+      } else {
+        const roomId = res1.rows[0].id;
+        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@haemill.ms.kr']);
+        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@a4k.ai']);
       }
       
       const res2 = await db.execute(`SELECT id FROM rooms WHERE name = '그룹챗2'`);
@@ -117,6 +122,12 @@ async function initDb() {
         const roomRes = await db.execute(`INSERT INTO rooms (name, created_by) VALUES ('그룹챗2', 'vip7612@gmail.com') RETURNING id`);
         const roomId = roomRes.rows[0].id;
         await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip7612@gmail.com']);
+        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@haemill.ms.kr']);
+        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@a4k.ai']);
+      } else {
+        const roomId = res2.rows[0].id;
+        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@haemill.ms.kr']);
+        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@a4k.ai']);
       }
     } catch(e) { console.log('Seed skip:', e.message); }
 
@@ -191,11 +202,19 @@ app.post('/api/chat', async (req, res) => {
 
     // 2. Agent ONAi (Gemini) 연동 로직 (안티그래비티가 오프라인이거나 미설정일 때)
     let botResponse = '';
+    
+    // 그룹챗일 경우 방 이름을 확인하여 컨텍스트에 추가
+    let roomContext = '';
+    if (room_id) {
+       const r = await db.execute({ sql: 'SELECT name FROM rooms WHERE id = ?', args: [room_id] });
+       if (r.rows.length > 0) roomContext = `현재 사용자는 '${r.rows[0].name}' 채팅방에 있습니다. 이 방의 성격(예: 다수의 참여자, 특정 그룹 등)에 맞게 역할을 조정하여 답변하세요. `;
+    }
+
     if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'DUMMY_KEY') {
       try {
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
-          contents: `당신의 이름은 'Agent ONAi'이며, 친절하고 다재다능한 AI 비서입니다. 사용자 메시지: ${message}`
+          contents: `당신의 이름은 'Agent ONAi'이며, 친절하고 다재다능한 AI 비서입니다. ${roomContext}사용자 메시지: ${message}`
         });
         botResponse = response.text;
       } catch (apiErr) {

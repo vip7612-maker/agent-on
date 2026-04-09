@@ -636,7 +636,6 @@ function timeSince(dateString) {
   return Math.floor(seconds) + "초 전";
 }
 
-async function loadHistoryList() {
 window.openRoomInMainView = function(roomId, roomName, btnElement) {
   isViewingHistory = false;
   currentRoomId = roomId;
@@ -690,6 +689,7 @@ window.openRoomInMainView = function(roomId, roomName, btnElement) {
   }
 };
 
+async function loadHistoryList() {
   if (!historyList) return;
   try {
     historyList.innerHTML = '<div style="padding:16px;color:var(--text-muted);">과거 대화 불러오는 중...</div>';

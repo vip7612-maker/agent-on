@@ -315,17 +315,29 @@ async function syncChats() {
             
             msgDiv.appendChild(headerRow);
           } else {
-            // 내 메시지: 시간만 표시
-            const myTimeRow = document.createElement('div');
-            myTimeRow.style.cssText = 'font-size:0.7rem; color:var(--text-muted); margin-bottom:4px; text-align:right;';
+            // 내 메시지: 이름 + 시간 표시 (우측 정렬)
+            const myHeaderRow = document.createElement('div');
+            myHeaderRow.style.cssText = 'display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-bottom:6px;';
+            
+            // 이름
+            const myNameSpan = document.createElement('span');
+            myNameSpan.style.cssText = 'font-size:0.8rem; font-weight:600; color:var(--text-high);';
+            myNameSpan.textContent = msg.sender_name || (msg.sender_email ? msg.sender_email.split('@')[0] : '나');
+            myHeaderRow.appendChild(myNameSpan);
+            
+            // 시간
+            const myTimeSpan = document.createElement('span');
+            myTimeSpan.style.cssText = 'font-size:0.7rem; color:var(--text-muted);';
             if (msg.created_at) {
               const d = new Date(msg.created_at + 'Z');
               const h = d.getHours();
               const m = String(d.getMinutes()).padStart(2, '0');
               const ampm = h < 12 ? '오전' : '오후';
-              myTimeRow.textContent = `${ampm} ${h % 12 || 12}:${m}`;
+              myTimeSpan.textContent = `${ampm} ${h % 12 || 12}:${m}`;
             }
-            msgDiv.appendChild(myTimeRow);
+            myHeaderRow.appendChild(myTimeSpan);
+            
+            msgDiv.appendChild(myHeaderRow);
           }
         } else {
           msgDiv.className = `message ${msg.role}`;

@@ -1140,6 +1140,16 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // --- 나의 웹훅 설정 연결 ---
+  const userWebhookMenu = document.getElementById('userWebhookMenu');
+  if(userWebhookMenu) {
+    userWebhookMenu.addEventListener('click', () => {
+      showMainView('userWebhookView');
+      loadUserWebhook();
+      document.getElementById('userMenuPopup').classList.remove('show');
+    });
+  }
+
   // 관리자 서브 메뉴 탭 전환
   document.querySelectorAll('.admin-nav-item').forEach(item => {
     item.addEventListener('click', () => {
@@ -1288,6 +1298,8 @@ async function initUserBackend(userInfo) {
         if(harnessMenu) harnessMenu.style.display = 'flex';
         const automationMenu = document.getElementById('automationSettingMenu');
         if(automationMenu) automationMenu.style.display = 'flex';
+        const userWebhookMenu = document.getElementById('userWebhookMenu');
+        if(userWebhookMenu) userWebhookMenu.style.display = 'flex';
       }
       fetchMyRooms(userInfo.email);
     }

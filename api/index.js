@@ -118,6 +118,7 @@ async function initDb() {
     try { await db.execute('ALTER TABLE messages ADD COLUMN room_id INTEGER NULL'); } catch(e){}
     try { await db.execute('ALTER TABLE messages ADD COLUMN sender_email TEXT NULL'); } catch(e){}
     try { await db.execute('ALTER TABLE users ADD COLUMN picture TEXT NULL'); } catch(e){}
+    try { await db.execute('ALTER TABLE users ADD COLUMN webhook_url TEXT NULL'); } catch(e){}
     // 계정별 하네스 노출 설정 테이블
     await db.execute(`
       CREATE TABLE IF NOT EXISTS user_harness_prefs (
@@ -209,10 +210,14 @@ app.post('/api/chat', async (req, res) => {
       return res.json({ success: true, isGroupChat: true });
     }
 
-    // 1. 외부 에이전트(다른 맥미니의 안티그래비티) 연동
-    const settingRes = await db.execute({ sql: "SELECT value FROM settings WHERE key = 'ANTIGRAVITY_WEBHOOK_URL'" });
-    // 사용자의 명시적 요청에 따라 최신 주소로 하드코딩 (DB 값보다 우선순위가 높음)
-    const webhookUrl = (settingRes.rows.length > 0 && settingRes.rows[0].value) ? settingRes.rows[0].value : 'https://tales-eggs-discover-participating.trycloudflare.com/webhook';
+    // 1. 개별 유저 웹훅 연결 연동
+    let webhookUrl = null;
+    if (senderEmail) {
+      const userRes = await db.execute({ sql: "SELECT webhook_url FROM users WHERE email = ?", args: [senderEmail] });
+      if(userRes.rows.length > 0 && userRes.rows[0].webhook_url) {
+        webhookUrl = userRes.rows[0].webhook_url;
+      }
+    }
 
     if (webhookUrl) {
       try {
@@ -748,6 +753,26 @@ app.post('/api/admin/settings', async (req, res) => {
         args: [key, value]
       });
     }
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// === 유저 개인 설정 API ===
+app.get('/api/user/webhook', async (req, res) => {
+  try {
+    const userEmail = req.headers['user-email'];
+    if(!userEmail) return res.status(401).json({ error: 'Unauthorized' });
+    const uRes = await db.execute({ sql: 'SELECT webhook_url FROM users WHERE email = ?', args: [userEmail] });
+    res.json({ webhook_url: uRes.rows.length > 0 ? uRes.rows[0].webhook_url : '' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/user/webhook', async (req, res) => {
+  try {
+    const userEmail = req.headers['user-email'];
+    if(!userEmail) return res.status(401).json({ error: 'Unauthorized' });
+    const { webhook_url } = req.body;
+    await db.execute({ sql: 'UPDATE users SET webhook_url = ? WHERE email = ?', args: [webhook_url, userEmail] });
     res.json({ success: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });

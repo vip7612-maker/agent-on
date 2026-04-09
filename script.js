@@ -98,5 +98,34 @@ if (menuToggle && sidebar) {
   });
 }
 
-// 앱 실행 시 채팅 이력 로드
-window.addEventListener('DOMContentLoaded', loadChatHistory);
+// 시간에 따른 동적 인사말 변경
+function updateGreeting() {
+  const greetingTitle = document.getElementById('welcomeTitle');
+  if (!greetingTitle) return;
+  
+  const hour = new Date().getHours();
+  let greeting = '안녕하세요';
+  let icon = '☀️';
+
+  if (hour >= 5 && hour < 12) {
+    greeting = '좋은 아침입니다';
+    icon = '🌅';
+  } else if (hour >= 12 && hour < 18) {
+    greeting = '활기찬 오후입니다';
+    icon = '☀️';
+  } else if (hour >= 18 && hour < 22) {
+    greeting = '편안한 저녁입니다';
+    icon = '🌇';
+  } else {
+    greeting = '좋은 밤입니다';
+    icon = '🌙';
+  }
+
+  greetingTitle.textContent = `${icon} ${greeting}, 교장님`;
+}
+
+// 앱 실행 시 구동 로직
+window.addEventListener('DOMContentLoaded', () => {
+  updateGreeting();
+  loadChatHistory();
+});

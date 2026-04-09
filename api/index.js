@@ -201,7 +201,7 @@ app.post('/api/chat', async (req, res) => {
         await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, room_id })
+          body: JSON.stringify({ message, room_id, sender_email: senderEmail })
         });
         // 전송에 성공하면 백엔드 로직 종료 (결과는 나중에 안티그래비티가 웹훅으로 회신)
         return res.json({ success: true, forwarded: true });
@@ -244,16 +244,16 @@ app.post('/api/chat', async (req, res) => {
 
 // 외부 에이전트(안티그래비티)가 대시보드로 데이터를 쏘는 웹훅 (인바운드)
 app.post('/api/webhook/inbound', async (req, res) => {
-  const { role, content, room_id } = req.body;
+  const { role, content, room_id, sender_email } = req.body;
   if (!content) return res.status(400).json({ success: false, error: 'Missing content' });
   
   try {
     const senderRole = role || 'bot'; // 기본적으로 봇 발화로 처리
     await db.execute({
-      sql: 'INSERT INTO messages (role, content, session_date, room_id) VALUES (?, ?, ?, ?)',
-      args: [senderRole, content, getGlobalSessionDate(), room_id || null]
+      sql: 'INSERT INTO messages (role, content, session_date, room_id, sender_email) VALUES (?, ?, ?, ?, ?)',
+      args: [senderRole, content, getGlobalSessionDate(), room_id || null, sender_email || null]
     });
-    console.log(`[Webhook Inbound] ${senderRole}: ${content}`);
+    console.log(`[Webhook Inbound] ${senderRole} to ${sender_email}: ${content}`);
     res.json({ success: true, message: 'Saved successfully.' });
   } catch (err) {
     console.error('[Webhook Inbound Error]:', err);

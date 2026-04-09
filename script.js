@@ -113,12 +113,29 @@ async function syncChats() {
         contentDiv.className = 'message-content';
         contentDiv.textContent = msg.content;
         msgDiv.appendChild(contentDiv);
-        messagesEl.appendChild(msgDiv);
         
-        // DB에 최신 봇의 답변이 생겼다면 대기 상태 종료
+        // 봇 메시지 하단에 복사 버튼 추가
         if (msg.role === 'bot') {
+          const actionRow = document.createElement('div');
+          actionRow.className = 'message-actions';
+          
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'action-btn copy-btn';
+          copyBtn.innerHTML = '<iconify-icon icon="lucide:copy"></iconify-icon>';
+          copyBtn.onclick = () => {
+             navigator.clipboard.writeText(msg.content);
+             copyBtn.innerHTML = '<iconify-icon icon="lucide:check"></iconify-icon>';
+             setTimeout(() => {
+               copyBtn.innerHTML = '<iconify-icon icon="lucide:copy"></iconify-icon>';
+             }, 2000);
+          };
+          
+          actionRow.appendChild(copyBtn);
+          msgDiv.appendChild(actionRow);
           isWaitingForBot = false;
         }
+
+        messagesEl.appendChild(msgDiv);
       });
 
       // 만약 아직 안티그래비티 등으로부터 답변을 대기 중이라면 로딩 인디케이터 유지

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>온비서 (Agent On)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Serif+KR:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- 아이콘 처리를 위해 Iconify 사용 -->
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">✦ 온비서</div>
+        <button class="icon-btn"><iconify-icon icon="mdi:square-edit-outline"></iconify-icon></button>
+      </div>
+      <div class="sidebar-nav">
+        <div class="nav-item"><iconify-icon icon="mdi:message-outline"></iconify-icon> 새 대화</div>
+        <div class="nav-item"><iconify-icon icon="mdi:folder-outline"></iconify-icon> 프로젝트</div>
+        <div class="nav-item"><iconify-icon icon="mdi:history"></iconify-icon> 기록</div>
+      </div>
+      <div class="sidebar-footer">
+        <div class="user-profile">
+          <div class="avatar">현우</div>
+          <span>김현우</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="mobile-header">
+        <button class="icon-btn menu-toggle"><iconify-icon icon="mdi:menu"></iconify-icon></button>
+        <div class="logo">✦ 온비서</div>
+        <button class="icon-btn"><iconify-icon icon="mdi:square-edit-outline"></iconify-icon></button>
+      </header>
+
+      <div class="chat-container">
+        <!-- 대화가 없을 때 나타나는 초기 환영 화면 -->
+        <div class="welcome-screen" id="welcomeScreen">
+          <h1 class="welcome-title">🌙 좋은 밤입니다, 현우님</h1>
+          <p class="welcome-subtitle">무엇을 도와드릴까요?</p>
+        </div>
+
+        <!-- 실제 메시지가 추가되는 영역 -->
+        <div class="messages" id="messages">
+          <!-- 메시지가 동적으로 추가됨 -->
+        </div>
+
+        <!-- 입력창 영역 -->
+        <div class="input-container">
+          <div class="input-box">
+            <button class="icon-btn" aria-label="첨부"><iconify-icon icon="mdi:paperclip"></iconify-icon></button>
+            <input type="text" id="chatInput" placeholder="온비서에게 물어보세요..." autocomplete="off" />
+            <button class="icon-btn" id="micBtn" aria-label="음성"><iconify-icon icon="mdi:microphone"></iconify-icon></button>
+            <button class="icon-btn active" id="sendBtn" aria-label="전송"><iconify-icon icon="mdi:arrow-up-circle"></iconify-icon></button>
+          </div>
+          <div class="input-footer">
+            <span>Agent On 3.5 기반으로 응답합니다. 온비서는 실수가 있을 수 있습니다.</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -35,13 +35,17 @@ if (urlParams.has('room_id')) {
   }
 }
 
-// 모든 메인 뷰를 숨기고 지정한 뷰만 표시
-function showMainView(viewId) {
-  var views = ['chatView', 'historyView', 'boardView', 'harnessGalleryView', 'automationGalleryView', 'adminSettingsView', 'accountSettingsView', 'landingView'];
-  views.forEach(function(id) {
-    var el = document.getElementById(id);
+window.hideAllViews = function() {
+  const views = ['chatView', 'historyView', 'boardView', 'harnessGalleryView', 'automationGalleryView', 'adminSettingsView', 'accountSettingsView', 'landingView'];
+  views.forEach(id => {
+    const el = document.getElementById(id);
     if(el) el.style.display = 'none';
   });
+};
+
+// 모든 메인 뷰를 숨기고 지정한 뷰만 표시
+function showMainView(viewId) {
+  window.hideAllViews();
   var target = document.getElementById(viewId);
   if(target) target.style.display = 'flex';
   // 네비 active 해제
@@ -607,15 +611,9 @@ window.openRoomInMainView = function(roomId, roomName, btnElement) {
   if (btnElement) btnElement.classList.add('active');
 
   // 화면 뷰 전환
+  window.hideAllViews();
   const chatView = document.getElementById('chatView');
-  const historyView = document.getElementById('historyView');
-  const boardView = document.getElementById('boardView');
   if(chatView) chatView.style.display = 'flex';
-  if(historyView) historyView.style.display = 'none';
-  if(boardView) boardView.style.display = 'none';
-  const lv = document.getElementById('landingView'); if(lv) lv.style.display = 'none';
-  const adv = document.getElementById('adminSettingsView'); if(adv) adv.style.display = 'none';
-  const acv = document.getElementById('accountSettingsView'); if(acv) acv.style.display = 'none';
   
   // 헤더 및 환영 메시지 처리
   const chatRoomHeader = document.getElementById('chatRoomHeader');
@@ -683,10 +681,10 @@ window.openRoomInMainView = function(roomId, roomName, btnElement) {
         // 클릭 시 해당 과거 대화 로드
         navChat.classList.add('active');
         navHistory.classList.remove('active');
+        
+        window.hideAllViews();
         chatView.style.display = 'flex';
-        historyView.style.display = 'none';
-        const adv0 = document.getElementById('adminSettingsView'); if(adv0) adv0.style.display = 'none';
-        const acv0 = document.getElementById('accountSettingsView'); if(acv0) acv0.style.display = 'none';
+        
         isViewingHistory = true; // 과거 모드 (폴링 중단)
         
         messagesEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);">과거 세션 불러오는 중...</div>';
@@ -726,17 +724,8 @@ if (navChat && navHistory && navBoard) {
        currentRoomId = null;
        document.querySelectorAll('.group-room-btn').forEach(b => b.classList.remove('active'));
        
+       window.hideAllViews();
        chatView.style.display = 'flex';
-       historyView.style.display = 'none';
-       boardView.style.display = 'none';
-       const hgv = document.getElementById('harnessGalleryView');
-       if(hgv) hgv.style.display = 'none';
-       const agv = document.getElementById('automationGalleryView');
-       if(agv) agv.style.display = 'none';
-       const lv = document.getElementById('landingView');
-       if(lv) lv.style.display = 'none';
-       const adv1 = document.getElementById('adminSettingsView'); if(adv1) adv1.style.display = 'none';
-       const acv1 = document.getElementById('accountSettingsView'); if(acv1) acv1.style.display = 'none';
        
        // 메시지 영역 즉시 초기화 (그룹챗 잔류 방지)
        messagesEl.innerHTML = '';
@@ -781,15 +770,8 @@ if (navChat && navHistory && navBoard) {
     navBoard.classList.remove('active');
     
     if (localStorage.getItem('agentOn_token')) {
+       window.hideAllViews();
        historyView.style.display = 'flex';
-       chatView.style.display = 'none';
-       boardView.style.display = 'none';
-       const hgv3 = document.getElementById('harnessGalleryView');
-       if(hgv3) hgv3.style.display = 'none';
-       const lv = document.getElementById('landingView');
-       if(lv) lv.style.display = 'none';
-       const adv3 = document.getElementById('adminSettingsView'); if(adv3) adv3.style.display = 'none';
-       const acv3 = document.getElementById('accountSettingsView'); if(acv3) acv3.style.display = 'none';
        loadHistoryList();
     } else {
        chatView.style.display = 'none';
@@ -812,15 +794,8 @@ if (navChat && navHistory && navBoard) {
     navHistory.classList.remove('active');
     
     if (localStorage.getItem('agentOn_token')) {
+       window.hideAllViews();
        boardView.style.display = 'flex';
-       chatView.style.display = 'none';
-       historyView.style.display = 'none';
-       const hgv5 = document.getElementById('harnessGalleryView');
-       if(hgv5) hgv5.style.display = 'none';
-       const lv = document.getElementById('landingView');
-       if(lv) lv.style.display = 'none';
-       const adv5 = document.getElementById('adminSettingsView'); if(adv5) adv5.style.display = 'none';
-       const acv5 = document.getElementById('accountSettingsView'); if(acv5) acv5.style.display = 'none';
        
        if (!boardList) return;
        boardList.innerHTML = '<div style="color:var(--text-muted); text-align:center;">저장된 보드 답변 불러오는 중...</div>';

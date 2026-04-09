@@ -140,6 +140,22 @@ async function initDb() {
 initDb();
 
 // 기존 대화 이력 가져오기 (계정별 격리)
+app.get('/api/chat/count/aion', async (req, res) => {
+  try {
+    const userEmail = req.headers['user-email'];
+    if (!userEmail) return res.json({ count: 0 });
+    const sessionDate = getGlobalSessionDate();
+    const result = await db.execute({
+      sql: 'SELECT COUNT(*) as count FROM messages WHERE session_date = ? AND room_id IS NULL AND sender_email = ?',
+      args: [sessionDate, userEmail]
+    });
+    const count = result.rows.length > 0 ? result.rows[0].count : 0;
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/chat', async (req, res) => {
   try {
     const roomId = req.query.room_id || null;

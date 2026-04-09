@@ -30,7 +30,10 @@
         </div>
       </div>
       <div class="sidebar-nav" id="sidebarNav" style="display: flex;">
-        <div class="nav-item active" id="navChat"><iconify-icon icon="mdi:message-outline"></iconify-icon> <span class="nav-label">AiON 채팅</span></div>
+        <div class="nav-item active" id="navChat" style="display:flex; justify-content:space-between; align-items:center;">
+          <div><iconify-icon icon="mdi:message-outline"></iconify-icon> <span class="nav-label">AiON 채팅</span></div>
+          <span id="aionChatBadge" style="display:none; background:#ef4444; color:#fff; font-size:0.75rem; font-weight:700; padding:2px 6px; border-radius:10px; margin-right:8px; line-height:1;"></span>
+        </div>
         <div class="nav-item" id="navHistory"><iconify-icon icon="mdi:history"></iconify-icon> <span class="nav-label">지난 채팅</span></div>
         <div class="nav-item" id="navBoard"><iconify-icon icon="mdi:text-box-check-outline"></iconify-icon> <span class="nav-label">Dash Board</span></div>
         <div id="groupSection" style="display: none;">

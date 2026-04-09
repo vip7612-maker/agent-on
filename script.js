@@ -259,6 +259,39 @@ function getCurrentUserEmail() {
 }
 
 // 대화 내역 실시간 동기화 (폴링 기법)
+let lastAionMsgCount = 0;
+
+async function checkAionBadge() {
+  const email = getCurrentUserEmail();
+  if(!email) return;
+  // 현재 'AiON 채팅' 화면(currentRoomId == null이고 과거 히스토리가 아님)을 보고 있다면, 배지를 확인할 필요 없이 해당 채팅방 syncChats에서 카운트가 업로드됨
+  if (currentRoomId === null && !isViewingHistory && document.getElementById('chatView').style.display !== 'none') {
+    // 뱃지 숨김 유지
+    const badge = document.getElementById('aionChatBadge');
+    if(badge) badge.style.display = 'none';
+    lastAionMsgCount = currentMsgCount > 0 ? currentMsgCount : lastAionMsgCount; 
+    return;
+  }
+  
+  try {
+    const res = await fetch('/api/chat/count/aion', { headers: { 'User-Email': email } });
+    const data = await res.json();
+    if(data && typeof data.count === 'number') {
+      const badge = document.getElementById('aionChatBadge');
+      if(badge) {
+        if(lastAionMsgCount === 0) lastAionMsgCount = data.count; // 초기 진입 로드
+        const diff = data.count - lastAionMsgCount;
+        if(diff > 0) {
+          badge.innerText = diff > 99 ? '99+' : diff;
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+    }
+  } catch(e) {}
+}
+
 async function syncChats() {
   if (isViewingHistory) return; // 히스토리 화면이거나 과거 대화를 볼 때는 중단
   
@@ -437,7 +470,10 @@ async function syncChats() {
 }
 
 // 2초 간격으로 새 메시지 모니터링 (다른 맥미니에서 인바운드 웹훅으로 쏘는 데이터 포착용)
-setInterval(syncChats, 2000);
+setInterval(() => {
+  syncChats();
+  checkAionBadge();
+}, 2000);
 
 // 메시지 전송 핸들러
 async function handleSend() {
@@ -726,6 +762,8 @@ if (navChat && navHistory && navBoard) {
        
        window.hideAllViews();
        chatView.style.display = 'flex';
+       const badge = document.getElementById('aionChatBadge');
+       if(badge) badge.style.display = 'none';
        
        // 메시지 영역 즉시 초기화 (그룹챗 잔류 방지)
        messagesEl.innerHTML = '';

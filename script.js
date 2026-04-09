@@ -106,11 +106,17 @@ function updateLandingView(type) {
 }
 
 function showLandingPage() {
-  document.getElementById('sidebarNav').style.display = 'flex';
-  document.getElementById('landingView').style.display = 'flex';
-  document.getElementById('chatView').style.display = 'none';
-  document.getElementById('historyView').style.display = 'none';
-  document.getElementById('boardView').style.display = 'none';
+  const sn = document.getElementById('sidebarNav');
+  if(sn) sn.style.display = 'flex';
+  const lv = document.getElementById('landingView');
+  if(lv) lv.style.display = 'flex';
+  const cv = document.getElementById('chatView');
+  if(cv) cv.style.display = 'none';
+  const hv = document.getElementById('historyView');
+  if(hv) hv.style.display = 'none';
+  const bv = document.getElementById('boardView');
+  if(bv) bv.style.display = 'none';
+  
   const loginBtn = document.getElementById('googleLoginBtn');
   if(loginBtn) loginBtn.style.display = 'flex';
   const profileDiv = document.getElementById('userProfile');
@@ -128,9 +134,12 @@ function showLandingPage() {
 }
 
 function applyUserInfo(userInfo) {
-  document.getElementById('sidebarNav').style.display = 'flex';
-  document.getElementById('landingView').style.display = 'none';
-  document.getElementById('chatView').style.display = 'flex';
+  const sn = document.getElementById('sidebarNav');
+  if(sn) sn.style.display = 'flex';
+  const lv = document.getElementById('landingView');
+  if(lv) lv.style.display = 'none';
+  const cv = document.getElementById('chatView');
+  if(cv) cv.style.display = 'flex';
   
   const googleBtn = document.getElementById('googleLoginBtn');
   if (googleBtn) googleBtn.style.display = 'none';

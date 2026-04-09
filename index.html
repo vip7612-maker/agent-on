@@ -15,17 +15,18 @@
   <div class="app-container">
     <aside class="sidebar">
       <div class="sidebar-header">
+        <button class="icon-btn" id="sidebarToggleBtn"><iconify-icon icon="mdi:page-layout-sidebar-left"></iconify-icon></button>
         <div class="logo">✦ 온비서</div>
         <button class="icon-btn"><iconify-icon icon="mdi:square-edit-outline"></iconify-icon></button>
       </div>
       <div class="sidebar-nav">
-        <div class="nav-item"><iconify-icon icon="mdi:message-outline"></iconify-icon> 새 대화</div>
-        <div class="nav-item"><iconify-icon icon="mdi:folder-outline"></iconify-icon> 프로젝트</div>
-        <div class="nav-item"><iconify-icon icon="mdi:history"></iconify-icon> 기록</div>
+        <div class="nav-item"><iconify-icon icon="mdi:message-outline"></iconify-icon> <span class="nav-label">새 대화</span></div>
+        <div class="nav-item"><iconify-icon icon="mdi:folder-outline"></iconify-icon> <span class="nav-label">프로젝트</span></div>
+        <div class="nav-item"><iconify-icon icon="mdi:history"></iconify-icon> <span class="nav-label">기록</span></div>
       </div>
       <div class="sidebar-footer">
         <button class="google-btn" id="googleLoginBtn">
-          <iconify-icon icon="logos:google-icon"></iconify-icon> 구글로 로그인
+          <iconify-icon icon="logos:google-icon"></iconify-icon> <span class="nav-label">구글로 로그인</span>
         </button>
         <div class="user-profile" id="userProfile" style="display: none;">
           <div class="avatar">이</div>

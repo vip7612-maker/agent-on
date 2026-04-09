@@ -307,3 +307,34 @@ html, body {
   display: flex;
   flex-direction: column;
 }
+
+/* 사이드바 최소화(축소) 모드 */
+.sidebar.collapsed {
+  width: 72px;
+}
+.sidebar.collapsed .logo,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .user-info {
+  display: none;
+}
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 0;
+}
+/* Collapse 상태일 때 오른쪽의 새 채팅 아이콘을 숨기거나 아이콘 정렬 변경 */
+.sidebar.collapsed .sidebar-header .logo + .icon-btn {
+  display: none;
+}
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 12px 0;
+}
+.sidebar.collapsed .google-btn {
+  padding: 12px 0;
+  justify-content: center;
+}
+.sidebar.collapsed .user-profile {
+  justify-content: center;
+}

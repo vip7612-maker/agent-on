@@ -156,4 +156,11 @@ function updateGreeting() {
 window.addEventListener('DOMContentLoaded', () => {
   updateGreeting();
   syncChats();
+
+  const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+  if (sidebarToggleBtn) {
+    sidebarToggleBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+    });
+  }
 });

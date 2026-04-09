@@ -149,7 +149,7 @@ async function initDb() {
         FOREIGN KEY(harness_id) REFERENCES harnesses(id)
       )
     `);
-    // 기존 데이터 마이그레이션: sender_email이 없는 ONAi 채팅 메시지를 최초 관리자 계정으로 귀속
+    // 기존 데이터 마이그레이션: sender_email이 없는 AiON 채팅 메시지를 최초 관리자 계정으로 귀속
     try { await db.execute(`UPDATE messages SET sender_email = 'vip7612@gmail.com' WHERE sender_email IS NULL AND room_id IS NULL`); } catch(e){}
 
     console.log('[Turso DB] 모든 테이블 준비 및 마이그레이션 완료.');
@@ -176,7 +176,7 @@ app.get('/api/chat', async (req, res) => {
         args: [roomId]
       });
     } else if (userEmail) {
-      // ONAi 1:1 채팅: 해당 사용자의 메시지만
+      // AiON 1:1 채팅: 해당 사용자의 메시지만
       result = await db.execute({
         sql: 'SELECT * FROM messages WHERE session_date = ? AND room_id IS NULL AND sender_email = ? ORDER BY id ASC',
         args: [sessionDate, userEmail]
@@ -229,22 +229,22 @@ app.post('/api/chat', async (req, res) => {
       }
     }
 
-    // 2. Agent ONAi (Gemini) 연동 로직 (안티그래비티가 오프라인이거나 미설정일 때)
+    // 2. AiON agent (Gemini) 연동 로직 (안티그래비티가 오프라인이거나 미설정일 때)
     let botResponse = '';
 
     if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'DUMMY_KEY') {
       try {
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
-          contents: `당신의 이름은 'Agent ONAi'이며, 친절하고 다재다능한 AI 비서입니다. 사용자 메시지: ${message}`
+          contents: `당신의 이름은 'AiON agent'이며, 친절하고 다재다능한 AI 비서입니다. 사용자 메시지: ${message}`
         });
         botResponse = response.text;
       } catch (apiErr) {
         console.error('[Gemini API Error]:', apiErr.message);
-        botResponse = `Agent ONAi API 연결 중 오류가 발생했습니다. (${apiErr.message})`;
+        botResponse = `AiON agent API 연결 중 오류가 발생했습니다. (${apiErr.message})`;
       }
     } else {
-      botResponse = `[Agent ONAi] 알림: 다른 맥미니의 안티그래비티 연동 URL(.env 의 ANTIGRAVITY_WEBHOOK_URL) 이 없습니다. 연결을 확인해 주세요. (메시지: ${message})`;
+      botResponse = `[AiON agent] 알림: 다른 맥미니의 안티그래비티 연동 URL(.env 의 ANTIGRAVITY_WEBHOOK_URL) 이 없습니다. 연결을 확인해 주세요. (메시지: ${message})`;
     }
     
     // AI 응답 저장 (발신자와 동일한 사용자에게 귀속)

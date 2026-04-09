@@ -11,7 +11,7 @@ let isWaitingForBot = false;
 let currentMsgCount = 0;
 let isViewingHistory = false;
 let selectedHarness = null; // 선택된 하네스 객체 {id, title, content}
-let currentRoomId = null; // 현재 선택된 그룹챗 ID (null이면 1:1 ONAi 채팅)
+let currentRoomId = null; // 현재 선택된 그룹챗 ID (null이면 1:1 AiON 채팅)
 let isPopupMode = false; // 독립창 모드 여부
 let popupRoomName = '';
 
@@ -126,12 +126,12 @@ function updateLandingView(type) {
   if(!title || !desc || !icon) return;
   
   if (type === 'chat') {
-     title.textContent = '생각을 현실로 만드는 AI, Agent ONAi';
+     title.textContent = '생각을 현실로 만드는 AI, AiON agent';
      desc.innerHTML = '단순한 질의응답을 뛰어넘어, 명령만 내리면 백엔드에서 당신의 로컬 환경과 연동되어 <strong>실질적인 업무 시퀀스</strong>를 모조리 수행하는 업계 최고 수준의 전속 비서입니다.';
      icon.innerHTML = '<iconify-icon icon="mdi:message-outline" style="font-size: 4rem;"></iconify-icon>';
   } else if (type === 'history') {
      title.textContent = '지난 채팅 (업무 일지 아카이브)';
-     desc.innerHTML = '매일 오전 5시, 당신이 Agent ONAi와 함께 수행했던 모든 대화와 시스템 자동화 로그가 <strong>하루 단위로 깔끔하게 문서화 및 아카이빙</strong> 됩니다.';
+     desc.innerHTML = '매일 오전 5시, 당신이 AiON agent와 함께 수행했던 모든 대화와 시스템 자동화 로그가 <strong>하루 단위로 깔끔하게 문서화 및 아카이빙</strong> 됩니다.';
      icon.innerHTML = '<iconify-icon icon="mdi:history" style="font-size: 4rem;"></iconify-icon>';
   } else if (type === 'board') {
      title.textContent = '나만의 강력한 지식 스크랩, Board';
@@ -336,7 +336,7 @@ async function syncChats() {
         contentDiv.textContent = msg.content;
         msgDiv.appendChild(contentDiv);
         
-        // 봇 메시지 하단에 복사 버튼 추가 (ONAi 채팅에서만)
+        // 봇 메시지 하단에 복사 버튼 추가 (AiON 채팅에서만)
         if (!currentRoomId && msg.role === 'bot') {
           const actionRow = document.createElement('div');
           actionRow.className = 'message-actions';
@@ -392,7 +392,7 @@ async function syncChats() {
         loadingDiv.id = 'loadingIndicator';
         const lContent = document.createElement('div');
         lContent.className = 'message-content';
-        lContent.textContent = 'Agent ONAi 작동 중...';
+        lContent.textContent = 'AiON agent 작동 중...';
         loadingDiv.appendChild(lContent);
         messagesEl.appendChild(loadingDiv);
       }
@@ -415,7 +415,7 @@ async function handleSend() {
   inputEl.value = '';
   isWaitingForBot = true;
 
-  // 하네스가 선택되어 있으면 합성 (ONAi 채팅에서만)
+  // 하네스가 선택되어 있으면 합성 (AiON 채팅에서만)
   let finalMessage = text;
   if (!currentRoomId && selectedHarness) {
     const lines = selectedHarness.content.split('\n').filter(l => l.trim()).join('\n');
@@ -434,7 +434,7 @@ async function handleSend() {
   userDiv.appendChild(uContent);
   messagesEl.appendChild(userDiv);
 
-  // 로딩 인디케이터 (ONAi 채팅에서만 표시)
+  // 로딩 인디케이터 (AiON 채팅에서만 표시)
   if (!currentRoomId) {
     const loadingDiv = document.createElement('div');
     loadingDiv.className = `message bot`;
@@ -633,7 +633,7 @@ if (navChat && navHistory && navBoard) {
        if(harnessBtn) harnessBtn.style.display = '';
        const attachBtn = document.getElementById('attachBtn');
        if(attachBtn) attachBtn.style.display = 'none';
-       inputEl.placeholder = 'Agent ONAi에게 물어보세요...';
+       inputEl.placeholder = 'AiON agent에게 물어보세요...';
        
        syncChats();
     } else {
@@ -999,7 +999,7 @@ async function fetchMyRooms(email) {
             const rName = btn.innerText.trim();
             currentMsgCount = -1;
             
-            // 2. 메시지 영역 즉시 비우기 (이전 ONAi 채팅 잔류 방지)
+            // 2. 메시지 영역 즉시 비우기 (이전 AiON 채팅 잔류 방지)
             messagesEl.innerHTML = '';
             messagesEl.style.display = 'none';
             welcomeScreen.style.display = 'flex';

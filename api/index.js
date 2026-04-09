@@ -92,9 +92,9 @@ async function initDb() {
       await db.execute(`INSERT OR IGNORE INTO users (email, name, role) VALUES ('vip776@haemill.ms.kr', 'Haemill', 'APPROVED')`);
       await db.execute(`INSERT OR IGNORE INTO users (email, name, role) VALUES ('vip776@a4k.ai', 'A4K', 'APPROVED')`);
       
-      const res = await db.execute(`SELECT id FROM rooms WHERE name = '사무국'`);
+      const res = await db.execute(`SELECT id FROM rooms WHERE name = '그룹챗1'`);
       if (res.rows.length === 0) {
-        const roomRes = await db.execute(`INSERT INTO rooms (name, created_by) VALUES ('사무국', 'vip7612@gmail.com') RETURNING id`);
+        const roomRes = await db.execute(`INSERT INTO rooms (name, created_by) VALUES ('그룹챗1', 'vip7612@gmail.com') RETURNING id`);
         const roomId = roomRes.rows[0].id;
         await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip7612@gmail.com']);
         await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@haemill.ms.kr']);

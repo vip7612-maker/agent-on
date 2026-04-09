@@ -7,7 +7,6 @@ const welcomeScreen = document.getElementById('welcomeScreen');
 const menuToggle = document.querySelector('.menu-toggle');
 const sidebar = document.querySelector('.sidebar');
 
-let isWaitingForBot = false;
 let currentMsgCount = 0;
 let isViewingHistory = false;
 let selectedHarness = null; // 선택된 하네스 객체 {id, title, content}
@@ -406,23 +405,10 @@ async function syncChats() {
           actionRow.appendChild(boardBtn);
           actionRow.appendChild(shareBtn);
           msgDiv.appendChild(actionRow);
-          isWaitingForBot = false;
         }
 
         messagesEl.appendChild(msgDiv);
       });
-
-      // 만약 아직 안티그래비티 등으로부터 답변을 대기 중이라면 로딩 인디케이터 유지
-      if (!currentRoomId && isWaitingForBot) {
-        const loadingDiv = document.createElement('div');
-        loadingDiv.className = `message bot`;
-        loadingDiv.id = 'loadingIndicator';
-        const lContent = document.createElement('div');
-        lContent.className = 'message-content';
-        lContent.textContent = 'AiON agent 작동 중...';
-        loadingDiv.appendChild(lContent);
-        messagesEl.appendChild(loadingDiv);
-      }
       
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
@@ -440,10 +426,6 @@ async function handleSend() {
   if (!text) return;
   
   inputEl.value = '';
-  // 봇 대기 상태 활성화 (1:1 AiON 채팅에서만)
-  if (!currentRoomId) {
-    isWaitingForBot = true;
-  }
 
   // 하네스가 선택되어 있으면 합성 (AiON 채팅에서만)
   let finalMessage = text;
@@ -468,18 +450,6 @@ async function handleSend() {
   }
   userDiv.appendChild(uContent);
   messagesEl.appendChild(userDiv);
-
-  // 로딩 인디케이터 (AiON 채팅에서만 표시)
-  if (!currentRoomId) {
-    const loadingDiv = document.createElement('div');
-    loadingDiv.className = `message bot`;
-    loadingDiv.id = 'loadingIndicator';
-    const lContent = document.createElement('div');
-    lContent.className = 'message-content';
-    lContent.textContent = 'Agent ONAi 작동 중...';
-    loadingDiv.appendChild(lContent);
-    messagesEl.appendChild(loadingDiv);
-  }
   
   if (welcomeScreen.style.display !== 'none') {
     welcomeScreen.style.display = 'none';

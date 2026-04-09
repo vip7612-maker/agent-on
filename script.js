@@ -84,20 +84,50 @@ async function checkGoogleLogin() {
   }
 }
 
+function updateLandingView(type) {
+  const title = document.getElementById('landingTitle');
+  const desc = document.getElementById('landingDesc');
+  const icon = document.getElementById('landingIcon');
+  if(!title || !desc || !icon) return;
+  
+  if (type === 'chat') {
+     title.textContent = '생각을 현실로 만드는 AI, Agent ONAi';
+     desc.innerHTML = '단순한 질의응답을 뛰어넘어, 명령만 내리면 백엔드에서 당신의 로컬 환경과 연동되어 <strong>실질적인 업무 시퀀스</strong>를 모조리 수행하는 업계 최고 수준의 전속 비서입니다.';
+     icon.innerHTML = '<iconify-icon icon="mdi:message-outline" style="font-size: 4rem;"></iconify-icon>';
+  } else if (type === 'history') {
+     title.textContent = '지난 채팅 (업무 일지 아카이브)';
+     desc.innerHTML = '매일 오전 5시, 당신이 Agent ONAi와 함께 수행했던 모든 대화와 시스템 자동화 로그가 <strong>하루 단위로 깔끔하게 문서화 및 아카이빙</strong> 됩니다.';
+     icon.innerHTML = '<iconify-icon icon="mdi:history" style="font-size: 4rem;"></iconify-icon>';
+  } else if (type === 'board') {
+     title.textContent = '나만의 강력한 지식 스크랩, Board';
+     desc.innerHTML = '핵심적인 답변이나 나중에 다시 활용하고 싶은 복잡한 코드, 결과물을 찾으셨나요? <strong>채팅 내 핀(Pin) 아이콘</strong>을 클릭하여 이 보드에 영구 지식으로 보관하세요.';
+     icon.innerHTML = '<iconify-icon icon="mdi:text-box-check-outline" style="font-size: 4rem;"></iconify-icon>';
+  }
+}
+
 function showLandingPage() {
-  document.getElementById('loggedOutNav').style.display = 'block';
-  document.getElementById('sidebarNav').style.display = 'none';
+  document.getElementById('sidebarNav').style.display = 'flex';
   document.getElementById('landingView').style.display = 'flex';
   document.getElementById('chatView').style.display = 'none';
   document.getElementById('historyView').style.display = 'none';
   document.getElementById('boardView').style.display = 'none';
-  document.getElementById('googleLoginBtn').style.display = 'flex';
-  document.getElementById('userProfile').style.display = 'none';
+  const loginBtn = document.getElementById('googleLoginBtn');
+  if(loginBtn) loginBtn.style.display = 'flex';
+  const profileDiv = document.getElementById('userProfile');
+  if(profileDiv) profileDiv.style.display = 'none';
   isViewingHistory = true; // stop sync
+  
+  // default
+  updateLandingView('chat');
+  const nchat = document.getElementById('navChat');
+  if(nchat) nchat.classList.add('active');
+  const nhis = document.getElementById('navHistory');
+  if(nhis) nhis.classList.remove('active');
+  const nbrd = document.getElementById('navBoard');
+  if(nbrd) nbrd.classList.remove('active');
 }
 
 function applyUserInfo(userInfo) {
-  document.getElementById('loggedOutNav').style.display = 'none';
   document.getElementById('sidebarNav').style.display = 'flex';
   document.getElementById('landingView').style.display = 'none';
   document.getElementById('chatView').style.display = 'flex';
@@ -398,15 +428,28 @@ async function loadHistoryList() {
 
 if (navChat && navHistory && navBoard) {
   navChat.addEventListener('click', () => {
-    isViewingHistory = false;
     navChat.classList.add('active');
     navHistory.classList.remove('active');
     navBoard.classList.remove('active');
-    chatView.style.display = 'flex';
-    historyView.style.display = 'none';
-    boardView.style.display = 'none';
-    currentMsgCount = -1; // 강제 새로고침
-    syncChats();
+    
+    if (localStorage.getItem('agentOn_token')) {
+       isViewingHistory = false;
+       chatView.style.display = 'flex';
+       historyView.style.display = 'none';
+       boardView.style.display = 'none';
+       const lv = document.getElementById('landingView');
+       if(lv) lv.style.display = 'none';
+       currentMsgCount = -1; // 강제 새로고침
+       syncChats();
+    } else {
+       isViewingHistory = true;
+       chatView.style.display = 'none';
+       historyView.style.display = 'none';
+       boardView.style.display = 'none';
+       const lv = document.getElementById('landingView');
+       if(lv) lv.style.display = 'flex';
+       updateLandingView('chat');
+    }
   });
   
   navHistory.addEventListener('click', () => {
@@ -414,10 +457,22 @@ if (navChat && navHistory && navBoard) {
     navHistory.classList.add('active');
     navChat.classList.remove('active');
     navBoard.classList.remove('active');
-    historyView.style.display = 'flex';
-    chatView.style.display = 'none';
-    boardView.style.display = 'none';
-    loadHistoryList();
+    
+    if (localStorage.getItem('agentOn_token')) {
+       historyView.style.display = 'flex';
+       chatView.style.display = 'none';
+       boardView.style.display = 'none';
+       const lv = document.getElementById('landingView');
+       if(lv) lv.style.display = 'none';
+       loadHistoryList();
+    } else {
+       chatView.style.display = 'none';
+       historyView.style.display = 'none';
+       boardView.style.display = 'none';
+       const lv = document.getElementById('landingView');
+       if(lv) lv.style.display = 'flex';
+       updateLandingView('history');
+    }
   });
 
   navBoard.addEventListener('click', async () => {
@@ -425,80 +480,92 @@ if (navChat && navHistory && navBoard) {
     navBoard.classList.add('active');
     navChat.classList.remove('active');
     navHistory.classList.remove('active');
-    boardView.style.display = 'flex';
-    chatView.style.display = 'none';
-    historyView.style.display = 'none';
     
-    if (!boardList) return;
-    boardList.innerHTML = '<div style="color:var(--text-muted); text-align:center;">저장된 보드 답변 불러오는 중...</div>';
-    try {
-      const res = await fetch('/api/board');
-      const data = await res.json();
-      boardList.innerHTML = '';
-      if(data.messages.length === 0) {
-        boardList.innerHTML = '<div style="color:var(--text-muted); text-align:center;">아직 저장된 보드 항목이 없습니다. (답변 하단의 핀 아이콘 클릭)</div>';
-        return;
-      }
-      
-      const now = new Date();
-      const recentClips = [];
-      const pastClips = [];
+    if (localStorage.getItem('agentOn_token')) {
+       boardView.style.display = 'flex';
+       chatView.style.display = 'none';
+       historyView.style.display = 'none';
+       const lv = document.getElementById('landingView');
+       if(lv) lv.style.display = 'none';
+       
+       if (!boardList) return;
+       boardList.innerHTML = '<div style="color:var(--text-muted); text-align:center;">저장된 보드 답변 불러오는 중...</div>';
+       try {
+         const res = await fetch('/api/board');
+         const data = await res.json();
+         boardList.innerHTML = '';
+         if(data.messages.length === 0) {
+           boardList.innerHTML = '<div style="color:var(--text-muted); text-align:center;">아직 저장된 보드 항목이 없습니다. (답변 하단의 핀 아이콘 클릭)</div>';
+           return;
+         }
+         
+         const now = new Date();
+         const recentClips = [];
+         const pastClips = [];
 
-      data.messages.forEach(msg => {
-        let dateObj = new Date();
-        if (msg.created_at) {
-          dateObj = new Date(msg.created_at.replace(' ', 'T') + 'Z');
-        }
-        const diffDays = Math.ceil(Math.abs(now - dateObj) / (1000 * 60 * 60 * 24));
-        if (diffDays > 7) pastClips.push(msg);
-        else recentClips.push(msg);
-      });
-
-      const createBoardDOM = (msg) => {
-        const div = document.createElement('div');
-        div.style.cssText = "background: var(--bg-input); border-radius:12px; padding: 20px; border:1px solid var(--border-color); position: relative;";
-        
-        const delBtn = document.createElement('button');
-        delBtn.className = 'icon-btn';
-        delBtn.style.cssText = "position: absolute; top: 16px; right: 16px; color: var(--text-muted); font-size: 1.2rem; padding: 4px; box-shadow: none; border: none; background: transparent;";
-        delBtn.innerHTML = '<iconify-icon icon="lucide:trash-2"></iconify-icon>';
-        delBtn.onclick = async () => {
-           if(confirm('이 답변을 보드에서 제거하시겠습니까?')) {
-             await fetch('/api/board/' + msg.id, { method: 'PUT' });
-             navBoard.click(); // 삭제 후 보드 자동 새로고침
+         data.messages.forEach(msg => {
+           let dateObj = new Date();
+           if (msg.created_at) {
+             dateObj = new Date(msg.created_at.replace(' ', 'T') + 'Z');
            }
-        };
+           const diffDays = Math.ceil(Math.abs(now - dateObj) / (1000 * 60 * 60 * 24));
+           if (diffDays > 7) pastClips.push(msg);
+           else recentClips.push(msg);
+         });
 
-        const meta = document.createElement('div');
-        meta.style.cssText = "font-size:0.85rem; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; padding-right: 32px;";
-        meta.innerHTML = `<span><iconify-icon icon="lucide:pin" style="color:var(--text-high); vertical-align:middle;"></iconify-icon> ${msg.session_date || '오늘'}</span>`;
-        
-        const content = document.createElement('div');
-        content.style.lineHeight = "1.6";
-        content.textContent = msg.content;
-        
-        div.appendChild(delBtn);
-        div.appendChild(meta);
-        div.appendChild(content);
-        return div;
-      };
+         const createBoardDOM = (msg) => {
+           const div = document.createElement('div');
+           div.style.cssText = "background: var(--bg-input); border-radius:12px; padding: 20px; border:1px solid var(--border-color); position: relative;";
+           
+           const delBtn = document.createElement('button');
+           delBtn.className = 'icon-btn';
+           delBtn.style.cssText = "position: absolute; top: 16px; right: 16px; color: var(--text-muted); font-size: 1.2rem; padding: 4px; box-shadow: none; border: none; background: transparent;";
+           delBtn.innerHTML = '<iconify-icon icon="lucide:trash-2"></iconify-icon>';
+           delBtn.onclick = async () => {
+              if(confirm('이 답변을 보드에서 제거하시겠습니까?')) {
+                await fetch('/api/board/' + msg.id, { method: 'PUT' });
+                navBoard.click(); // 삭제 후 보드 자동 새로고침
+              }
+           };
 
-      if (recentClips.length > 0) {
-        const h3 = document.createElement('h3');
-        h3.style.cssText = "font-size: 1.05rem; color: var(--text-high); margin: 0 0 12px 0; font-weight: 500;";
-        h3.textContent = "최신 클립";
-        boardList.appendChild(h3);
-        recentClips.forEach(msg => boardList.appendChild(createBoardDOM(msg)));
-      }
+           const meta = document.createElement('div');
+           meta.style.cssText = "font-size:0.85rem; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; padding-right: 32px;";
+           meta.innerHTML = `<span><iconify-icon icon="lucide:pin" style="color:var(--text-high); vertical-align:middle;"></iconify-icon> ${msg.session_date || '오늘'}</span>`;
+           
+           const content = document.createElement('div');
+           content.style.lineHeight = "1.6";
+           content.textContent = msg.content;
+           
+           div.appendChild(delBtn);
+           div.appendChild(meta);
+           div.appendChild(content);
+           return div;
+         };
 
-      if (pastClips.length > 0) {
-        const h3 = document.createElement('h3');
-        h3.style.cssText = "font-size: 1.05rem; color: var(--text-muted); margin: 24px 0 12px 0; font-weight: 500;";
-        h3.textContent = "지난 클립 (1주일 경과)";
-        boardList.appendChild(h3);
-        pastClips.forEach(msg => boardList.appendChild(createBoardDOM(msg)));
-      }
-    } catch(err) { console.error(err); }
+         if (recentClips.length > 0) {
+           const h3 = document.createElement('h3');
+           h3.style.cssText = "font-size: 1.05rem; color: var(--text-high); margin: 0 0 12px 0; font-weight: 500;";
+           h3.textContent = "최신 클립";
+           boardList.appendChild(h3);
+           recentClips.forEach(msg => boardList.appendChild(createBoardDOM(msg)));
+         }
+
+         if (pastClips.length > 0) {
+           const h3 = document.createElement('h3');
+           h3.style.cssText = "font-size: 1.05rem; color: var(--text-muted); margin: 24px 0 12px 0; font-weight: 500;";
+           h3.textContent = "지난 클립 (1주일 경과)";
+           boardList.appendChild(h3);
+           pastClips.forEach(msg => boardList.appendChild(createBoardDOM(msg)));
+         }
+       } catch(err) { console.error(err); }
+    } else {
+       chatView.style.display = 'none';
+       historyView.style.display = 'none';
+       boardView.style.display = 'none';
+       const lv = document.getElementById('landingView');
+       if(lv) lv.style.display = 'flex';
+       updateLandingView('board');
+    }
   });
 }
 

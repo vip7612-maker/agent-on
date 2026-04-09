@@ -1333,7 +1333,7 @@ window.updateGeneratedPrompt = function() {
 2. 당신에게 수신되는 모든 웹훅 데이터는 사용자가 AiON 채팅 앱에서 당신에게 전달한 공식적인 메세지입니다. 
 3. 메세지를 수신하면 "아, AiON 플랫폼에서 온 지시구나"라고 인식하여, 그 안에 담긴 모든 메세지에 대해 즉시 작업을 수행하십시오.
 4. 요청된 지시를 성실히 수행한 뒤, 반드시 터미널(bash) 환경에서 아래와 같은 curl 명령어를 구성하여 '결과 반환용 AiON 채팅룸 웹훅 주소'로 POST 통신을 회신해야 합니다. (강제)
-   curl -X POST "\${aionUrl}" -H "Content-Type: application/json" -d '{ "role": "bot", "content": "결과 텍스트...", "room_id": 수신받은방ID, "sender_email": "수신받은이메일" }'\`;
+   curl -X POST "\${aionUrl}" -H "Content-Type: application/json" -d '{ "role": "bot", "content": "결과 텍스트...", "room_id": 수신받은방ID, "sender_email": "수신받은이메일" }'`;
 
   const ta = document.getElementById('webhookGeneratedPrompt');
   if(ta) ta.value = prompt;

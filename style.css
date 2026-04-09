@@ -279,3 +279,31 @@ html, body {
     padding: 0 16px 16px 16px;
   }
 }
+
+/* 구글 로그인 버튼 스타일 */
+.google-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: #ffffff;
+  color: #000000;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-family: inherit;
+}
+
+.google-btn:hover {
+  background-color: #e5e5e5;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}

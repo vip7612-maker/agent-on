@@ -7,80 +7,108 @@ const welcomeScreen = document.getElementById('welcomeScreen');
 const menuToggle = document.querySelector('.menu-toggle');
 const sidebar = document.querySelector('.sidebar');
 
-// 대화 내역 초기 로드
-async function loadChatHistory() {
+let isWaitingForBot = false;
+let currentMsgCount = 0;
+
+// 대화 내역 실시간 동기화 (폴링 기법)
+async function syncChats() {
   try {
     const res = await fetch('/api/chat');
     const data = await res.json();
-    if (data.success && data.messages.length > 0) {
+    if (data.success && data.messages.length !== currentMsgCount) {
+      currentMsgCount = data.messages.length;
+      
+      // 기존 메시지들 비우기
+      messagesEl.innerHTML = '';
+      if (currentMsgCount > 0 && welcomeScreen.style.display !== 'none') {
+        welcomeScreen.style.display = 'none';
+        messagesEl.style.display = 'block';
+      }
+
+      // DB의 최신 메시지 전체 렌더링
       data.messages.forEach(msg => {
-        appendMessage(msg.content, msg.role);
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${msg.role}`;
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.textContent = msg.content;
+        msgDiv.appendChild(contentDiv);
+        messagesEl.appendChild(msgDiv);
+        
+        // DB에 최신 봇의 답변이 생겼다면 대기 상태 종료
+        if (msg.role === 'bot') {
+          isWaitingForBot = false;
+        }
       });
+
+      // 만약 아직 안티그래비티 등으로부터 답변을 대기 중이라면 로딩 인디케이터 유지
+      if (isWaitingForBot) {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = `message bot`;
+        loadingDiv.id = 'loadingIndicator';
+        const lContent = document.createElement('div');
+        lContent.className = 'message-content';
+        lContent.textContent = '온비서(안티그래비티) 작동 중...';
+        loadingDiv.appendChild(lContent);
+        messagesEl.appendChild(loadingDiv);
+      }
+      
+      messagesEl.scrollTop = messagesEl.scrollHeight;
     }
   } catch (err) {
-    console.error('채팅 기록을 불러오는 데 실패했습니다.', err);
+    console.error('동기화 실패:', err);
   }
 }
 
-// 메시지를 렌더링하는 함수
-function appendMessage(text, sender) {
-  if (welcomeScreen.style.display !== 'none') {
-    welcomeScreen.style.display = 'none';
-    messagesEl.style.display = 'block';
-  }
-
-  const msgDiv = document.createElement('div');
-  msgDiv.className = `message ${sender}`;
-  const contentDiv = document.createElement('div');
-  contentDiv.className = 'message-content';
-  contentDiv.textContent = text;
-  
-  msgDiv.appendChild(contentDiv);
-  messagesEl.appendChild(msgDiv);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
+// 2초 간격으로 새 메시지 모니터링 (다른 맥미니에서 인바운드 웹훅으로 쏘는 데이터 포착용)
+setInterval(syncChats, 2000);
 
 // 메시지 전송 핸들러
 async function handleSend() {
   const text = inputEl.value.trim();
   if (!text) return;
   
-  appendMessage(text, 'user');
   inputEl.value = '';
+  isWaitingForBot = true;
+
+  // 사용자의 입력은 낙관적 렌더링(Optimistic update)
+  const userDiv = document.createElement('div');
+  userDiv.className = `message user`;
+  const uContent = document.createElement('div');
+  uContent.className = 'message-content';
+  uContent.textContent = text;
+  userDiv.appendChild(uContent);
+  messagesEl.appendChild(userDiv);
+
+  // 로딩 인디케이터 즉시 표시
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = `message bot`;
+  loadingDiv.id = 'loadingIndicator';
+  const lContent = document.createElement('div');
+  lContent.className = 'message-content';
+  lContent.textContent = '온비서(안티그래비티) 작동 중...';
+  loadingDiv.appendChild(lContent);
+  messagesEl.appendChild(loadingDiv);
   
-  // 로딩 인디케이터 (간단히 처리)
-  const loadingId = 'loading-' + Date.now();
-  const msgDiv = document.createElement('div');
-  msgDiv.className = `message bot`;
-  msgDiv.id = loadingId;
-  const contentDiv = document.createElement('div');
-  contentDiv.className = 'message-content';
-  contentDiv.textContent = '온비서가 답변을 작성 중입니다...';
-  msgDiv.appendChild(contentDiv);
-  messagesEl.appendChild(msgDiv);
+  if (welcomeScreen.style.display !== 'none') {
+    welcomeScreen.style.display = 'none';
+    messagesEl.style.display = 'block';
+  }
   messagesEl.scrollTop = messagesEl.scrollHeight;
+  
+  // 다음 syncChats가 강제로 화면을 덮어쓰기 하도록 카운트 조작
+  currentMsgCount = -1;
 
   try {
-    // 백엔드로 전송
-    const res = await fetch('/api/chat', {
+    await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: text })
     });
-    const data = await res.json();
-    
-    // 로딩 메시지 삭제
-    document.getElementById(loadingId).remove();
-
-    if (data.success) {
-      appendMessage(data.reply, 'bot');
-    } else {
-      appendMessage('오류가 발생했습니다.', 'bot');
-    }
+    // POST 직후 즉각 1회 동기화 (Gemini 폴백이 작동했을 수 있으므로)
+    syncChats();
   } catch (err) {
     console.error(err);
-    document.getElementById(loadingId).remove();
-    appendMessage('네트워크 오류가 발생했습니다.', 'bot');
   }
 }
 
@@ -127,5 +155,5 @@ function updateGreeting() {
 // 앱 실행 시 구동 로직
 window.addEventListener('DOMContentLoaded', () => {
   updateGreeting();
-  loadChatHistory();
+  syncChats();
 });

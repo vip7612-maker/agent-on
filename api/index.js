@@ -65,30 +65,7 @@ app.post('/api/chat', async (req, res) => {
       args: ['user', message]
     });
 
-    // 온비서 AI (Gemini 3.1 Pro / 2.5 Flash) 연동 로직
-    let botResponse = '';
-    if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'DUMMY_KEY') {
-      try {
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: `당신의 이름은 '온비서(Agent On)'이며, 친절하고 다재다능한 AI 비서입니다. 사용자 메시지에 자연스럽게 답변해주세요.\n사용자 메시지: ${message}`
-        });
-        botResponse = response.text;
-      } catch (apiErr) {
-        console.error('[Gemini API Error]:', apiErr.message);
-        botResponse = `온비서 API 연결 중 오류가 발생했습니다. (${apiErr.message})`;
-      }
-    } else {
-      botResponse = `[온비서] 정상적으로 연결되었습니다. 실제 답변을 위해 .env 에 GEMINI_API_KEY 를 입력해주세요. (입력한 내용: ${message})`;
-    }
-    
-    // AI 응답 저장
-    await db.execute({
-      sql: 'INSERT INTO messages (role, content) VALUES (?, ?)',
-      args: ['bot', botResponse]
-    });
-
-    // 3. 외부 에이전트(안티그래비티)로 메시지 전달 (웹훅 아웃바운드)
+    // 1. 외부 에이전트(다른 맥미니의 안티그래비티) 연동
     if (process.env.ANTIGRAVITY_WEBHOOK_URL) {
       try {
         await fetch(process.env.ANTIGRAVITY_WEBHOOK_URL, {
@@ -96,10 +73,36 @@ app.post('/api/chat', async (req, res) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message })
         });
+        // 전송에 성공하면 백엔드 로직 종료 (결과는 나중에 안티그래비티가 웹훅으로 회신)
+        return res.json({ success: true, forwarded: true });
       } catch (err) {
         console.error('[Webhook Outbound Error]:', err.message);
+        // 실패 시 Gemini 로 폴백 처리
       }
     }
+
+    // 2. 온비서 AI (Gemini) 연동 로직 (안티그래비티가 오프라인이거나 미설정일 때)
+    let botResponse = '';
+    if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'DUMMY_KEY') {
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: `당신의 이름은 '온비서(Agent On)'이며, 친절하고 다재다능한 AI 비서입니다. 사용자 메시지: ${message}`
+        });
+        botResponse = response.text;
+      } catch (apiErr) {
+        console.error('[Gemini API Error]:', apiErr.message);
+        botResponse = `온비서 API 연결 중 오류가 발생했습니다. (${apiErr.message})`;
+      }
+    } else {
+      botResponse = `[온비서] 알림: 다른 맥미니의 안티그래비티 연동 URL(.env 의 ANTIGRAVITY_WEBHOOK_URL) 이 없습니다. 연결을 확인해 주세요. (메시지: ${message})`;
+    }
+    
+    // AI 응답 저장
+    await db.execute({
+      sql: 'INSERT INTO messages (role, content) VALUES (?, ?)',
+      args: ['bot', botResponse]
+    });
 
     res.json({ success: true, reply: botResponse });
   } catch (err) {

@@ -24,9 +24,15 @@
         <div class="nav-item"><iconify-icon icon="mdi:history"></iconify-icon> 기록</div>
       </div>
       <div class="sidebar-footer">
-        <div class="user-profile">
-          <div class="avatar">교장</div>
-          <span>교장선생님</span>
+        <button class="google-btn" id="googleLoginBtn">
+          <iconify-icon icon="logos:google-icon"></iconify-icon> 구글로 로그인
+        </button>
+        <div class="user-profile" id="userProfile" style="display: none;">
+          <div class="avatar">이</div>
+          <div class="user-info">
+            <span class="user-name" style="font-weight: 600; font-size: 0.95rem;">이경진</span>
+            <span class="user-title" style="font-size: 0.8rem; color: var(--text-muted);">교장님</span>
+          </div>
         </div>
       </div>
     </aside>

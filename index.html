@@ -471,8 +471,9 @@
     <div id="shareRoomsList" style="display:flex; flex-direction:column; gap:2px; max-height:200px; overflow-y:auto;"></div>
   </div>
 
-  <!-- 방법2: 인라인 백업 - script.js 에러와 무관하게 독립 실행 -->
+  <!-- 인라인 안전망: script.js 에러와 완전히 독립된 OAuth 풀 플로우 -->
   <script>
+    // === 1단계: 구글 로그인 리다이렉트 ===
     function oauthSignIn(e) {
       if (e) e.preventDefault();
       var url = 'https://accounts.google.com/o/oauth2/v2/auth'
@@ -484,7 +485,97 @@
         + '&state=login';
       window.location.assign(url);
     }
+
+    // === 2단계: 구글에서 돌아온 뒤 토큰 파싱 + 유저 정보 로드 ===
+    (function() {
+      // URL 해시에서 토큰 추출
+      var hash = window.location.hash.substring(1);
+      if (!hash) return; // 해시가 없으면 아무것도 안함
+
+      var params = {};
+      var regex = /([^&=]+)=([^&]*)/g;
+      var m;
+      while ((m = regex.exec(hash)) !== null) {
+        params[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
+      }
+
+      if (!params['access_token']) return; // 토큰이 없으면 종료
+
+      // 토큰 저장 & URL 해시 제거
+      var token = params['access_token'];
+      localStorage.setItem('agentOn_token', token);
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+      // 구글 API로 유저 정보 가져오기
+      fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(userInfo) {
+        if (userInfo.error) {
+          localStorage.removeItem('agentOn_token');
+          localStorage.removeItem('agentOn_user');
+          return;
+        }
+        // 유저 정보 저장
+        localStorage.setItem('agentOn_user', JSON.stringify(userInfo));
+
+        // UI 전환: 로그인 버튼 숨기기 & 프로필 표시
+        var loginBtn = document.getElementById('googleLoginBtn');
+        if (loginBtn) loginBtn.style.display = 'none';
+        var landingView = document.getElementById('landingView');
+        if (landingView) landingView.style.display = 'none';
+        var chatView = document.getElementById('chatView');
+        if (chatView) chatView.style.display = 'flex';
+        var userProfile = document.getElementById('userProfile');
+        if (userProfile) {
+          userProfile.style.display = 'flex';
+          var avatarDiv = userProfile.querySelector('.avatar');
+          if (avatarDiv && userInfo.picture) {
+            avatarDiv.style.background = 'transparent';
+            avatarDiv.innerHTML = '<img src="' + userInfo.picture + '" alt="profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
+          }
+          var nameEl = userProfile.querySelector('.user-name');
+          if (nameEl) nameEl.textContent = userInfo.name || '';
+          var emailEl = document.getElementById('userEmailDisplay');
+          if (emailEl) emailEl.textContent = userInfo.email || '';
+        }
+      })
+      .catch(function(err) {
+        console.error('Inline OAuth: fetch userinfo failed', err);
+      });
+    })();
+
+    // === 3단계: 이미 저장된 토큰이 있으면 자동 로그인 ===
+    (function() {
+      var savedUser = localStorage.getItem('agentOn_user');
+      if (!savedUser) return;
+      try {
+        var userInfo = JSON.parse(savedUser);
+        if (!userInfo || !userInfo.email) return;
+        // UI 전환
+        var loginBtn = document.getElementById('googleLoginBtn');
+        if (loginBtn) loginBtn.style.display = 'none';
+        var landingView = document.getElementById('landingView');
+        if (landingView) landingView.style.display = 'none';
+        var chatView = document.getElementById('chatView');
+        if (chatView) chatView.style.display = 'flex';
+        var userProfile = document.getElementById('userProfile');
+        if (userProfile) {
+          userProfile.style.display = 'flex';
+          var avatarDiv = userProfile.querySelector('.avatar');
+          if (avatarDiv && userInfo.picture) {
+            avatarDiv.style.background = 'transparent';
+            avatarDiv.innerHTML = '<img src="' + userInfo.picture + '" alt="profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
+          }
+          var nameEl = userProfile.querySelector('.user-name');
+          if (nameEl) nameEl.textContent = userInfo.name || '';
+          var emailEl = document.getElementById('userEmailDisplay');
+          if (emailEl) emailEl.textContent = userInfo.email || '';
+        }
+      } catch(e) { console.error('Inline auto-login failed', e); }
+    })();
   </script>
-  <script src="script.js?v=5.0"></script>
+  <script src="script.js?v=5.1"></script>
 </body>
 </html>

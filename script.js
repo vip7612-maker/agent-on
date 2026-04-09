@@ -621,6 +621,8 @@ async function loadHistoryList() {
         navHistory.classList.remove('active');
         chatView.style.display = 'flex';
         historyView.style.display = 'none';
+        const adv0 = document.getElementById('adminSettingsView'); if(adv0) adv0.style.display = 'none';
+        const acv0 = document.getElementById('accountSettingsView'); if(acv0) acv0.style.display = 'none';
         isViewingHistory = true; // 과거 모드 (폴링 중단)
         
         messagesEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);">과거 세션 불러오는 중...</div>';
@@ -669,6 +671,8 @@ if (navChat && navHistory && navBoard) {
        if(agv) agv.style.display = 'none';
        const lv = document.getElementById('landingView');
        if(lv) lv.style.display = 'none';
+       const adv1 = document.getElementById('adminSettingsView'); if(adv1) adv1.style.display = 'none';
+       const acv1 = document.getElementById('accountSettingsView'); if(acv1) acv1.style.display = 'none';
        
        // 메시지 영역 즉시 초기화 (그룹챗 잔류 방지)
        messagesEl.innerHTML = '';
@@ -700,6 +704,8 @@ if (navChat && navHistory && navBoard) {
        if(hgv2) hgv2.style.display = 'none';
        const lv = document.getElementById('landingView');
        if(lv) lv.style.display = 'flex';
+       const adv2 = document.getElementById('adminSettingsView'); if(adv2) adv2.style.display = 'none';
+       const acv2 = document.getElementById('accountSettingsView'); if(acv2) acv2.style.display = 'none';
        updateLandingView('chat');
     }
   });
@@ -718,6 +724,8 @@ if (navChat && navHistory && navBoard) {
        if(hgv3) hgv3.style.display = 'none';
        const lv = document.getElementById('landingView');
        if(lv) lv.style.display = 'none';
+       const adv3 = document.getElementById('adminSettingsView'); if(adv3) adv3.style.display = 'none';
+       const acv3 = document.getElementById('accountSettingsView'); if(acv3) acv3.style.display = 'none';
        loadHistoryList();
     } else {
        chatView.style.display = 'none';
@@ -727,6 +735,8 @@ if (navChat && navHistory && navBoard) {
        if(hgv4) hgv4.style.display = 'none';
        const lv = document.getElementById('landingView');
        if(lv) lv.style.display = 'flex';
+       const adv4 = document.getElementById('adminSettingsView'); if(adv4) adv4.style.display = 'none';
+       const acv4 = document.getElementById('accountSettingsView'); if(acv4) acv4.style.display = 'none';
        updateLandingView('history');
     }
   });
@@ -745,6 +755,8 @@ if (navChat && navHistory && navBoard) {
        if(hgv5) hgv5.style.display = 'none';
        const lv = document.getElementById('landingView');
        if(lv) lv.style.display = 'none';
+       const adv5 = document.getElementById('adminSettingsView'); if(adv5) adv5.style.display = 'none';
+       const acv5 = document.getElementById('accountSettingsView'); if(acv5) acv5.style.display = 'none';
        
        if (!boardList) return;
        boardList.innerHTML = '<div style="color:var(--text-muted); text-align:center;">저장된 보드 답변 불러오는 중...</div>';

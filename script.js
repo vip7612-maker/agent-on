@@ -1280,20 +1280,24 @@ function renderDropdown(roomId, query, eligibleUsers, existingEmails) {
       }
     });
   });
-  
-  // 4. 웹훅 설정 로드
-  try {
-    const setRes = await fetch('/api/admin/settings', { headers: {'User-Email': email} });
-    const setData = await setRes.json();
-    if(setData.success && setData.settings) {
-      const aionUrl = document.getElementById('webhookAionUrl');
-      const antiUrl = document.getElementById('webhookAntigravityUrl');
-      if(aionUrl) aionUrl.value = setData.settings['AION_WEBHOOK_URL'] || '';
-      if(antiUrl) antiUrl.value = setData.settings['ANTIGRAVITY_WEBHOOK_URL'] || '';
-      if (typeof window.updateGeneratedPrompt === 'function') window.updateGeneratedPrompt();
-    }
-  } catch(e) { console.error(e); }
 }
+  
+  // 4. 웹훅 설정 로드 (loadAdminData에서 분리된 블록)
+  (async function() {
+    var email = (function(){ var u = localStorage.getItem('agentOn_user'); return u ? JSON.parse(u).email : ''; })();
+    if (!email) return;
+    try {
+      var setRes = await fetch('/api/admin/settings', { headers: {'User-Email': email} });
+      var setData = await setRes.json();
+      if(setData.success && setData.settings) {
+        var aionUrl = document.getElementById('webhookAionUrl');
+        var antiUrl = document.getElementById('webhookAntigravityUrl');
+        if(aionUrl) aionUrl.value = setData.settings['AION_WEBHOOK_URL'] || '';
+        if(antiUrl) antiUrl.value = setData.settings['ANTIGRAVITY_WEBHOOK_URL'] || '';
+        if (typeof window.updateGeneratedPrompt === 'function') window.updateGeneratedPrompt();
+      }
+    } catch(e) { console.error(e); }
+  })();
 
 window.saveWebhookSettings = async function() {
   const email = getCurrentUserEmail();
@@ -1320,23 +1324,22 @@ window.saveWebhookSettings = async function() {
 }
 
 window.updateGeneratedPrompt = function() {
-  const aionUrl = document.getElementById('webhookAionUrl').value.trim() || '{AiON_챗팅룸_주소}';
-  const antiUrl = document.getElementById('webhookAntigravityUrl').value.trim() || '{Antigravity_웹훅_주소}';
-  
-  const prompt = `당신은 현재 이 서버에 상주하며, AiON 웹앱과의 웹훅 브릿지 및 명령 수행 임무를 담당하는 안티그래비티 에이전트입니다.
-
-[설정 정보]
-- 수신용 웹훅 주소(당신의 주소): ${antiUrl}
-- 결과 반환용 AiON 채팅룸 웹훅 주소: ${aionUrl}
-
-[핵심 강제 조항]
-1. 수신용 웹훅 주소로 POST 요청이 들어오는지 항상 Listen 하십시오. 들어오는 JSON payload 구조는 { "message": "...", "room_id": ..., "sender_email": "..." } 입니다.
-2. 당신에게 수신되는 모든 웹훅 데이터는 사용자가 AiON 채팅 앱에서 당신에게 전달한 공식적인 메세지입니다. 
-3. 메세지를 수신하면 "아, AiON 플랫폼에서 온 지시구나"라고 인식하여, 그 안에 담긴 모든 메세지에 대해 즉시 작업을 수행하십시오.
-4. 요청된 지시를 성실히 수행한 뒤, 반드시 터미널(bash) 환경에서 아래와 같은 curl 명령어를 구성하여 '결과 반환용 AiON 채팅룸 웹훅 주소'로 POST 통신을 회신해야 합니다. (강제)
-   curl -X POST "\${aionUrl}" -H "Content-Type: application/json" -d '{ "role": "bot", "content": "결과 텍스트...", "room_id": 수신받은방ID, "sender_email": "수신받은이메일" }'`;
-
-  const ta = document.getElementById('webhookGeneratedPrompt');
+  var aionUrlVal = document.getElementById('webhookAionUrl').value.trim() || '{AiON_챗팅룸_주소}';
+  var antiUrlVal = document.getElementById('webhookAntigravityUrl').value.trim() || '{Antigravity_웹훅_주소}';
+  var prompt = [
+    '당신은 현재 이 서버에 상주하며, AiON 웹앱과의 웹훅 브릿지 및 명령 수행 임무를 담당하는 안티그래비티 에이전트입니다.',
+    '',
+    '[설정 정보]',
+    '- 수신용 웹훅 주소(당신의 주소): ' + antiUrlVal,
+    '- 결과 반환용 AiON 채팅룸 웹훅 주소: ' + aionUrlVal,
+    '',
+    '[핵심 강제 조항]',
+    '1. 수신용 웹훅 주소로 POST 요청이 들어오는지 항상 Listen 하십시오.',
+    '2. 당신에게 수신되는 모든 웹훅 데이터는 사용자가 AiON 채팅 앱에서 당신에게 전달한 공식적인 메세지입니다.',
+    '3. 메세지를 수신하면 즉시 작업을 수행하십시오.',
+    '4. 작업 완료 후 curl -X POST 로 결과를 회신하십시오.'
+  ].join('\\n');
+  var ta = document.getElementById('webhookGeneratedPrompt');
   if(ta) ta.value = prompt;
 }
 

@@ -43,8 +43,7 @@
           <div style="display: flex; align-items: center; gap: 12px;">
             <div class="avatar" style="width: 36px; height: 36px; border-radius: 50%; background: var(--bg-input); display:flex; align-items:center; justify-content:center; color:var(--text-high); overflow:hidden;"></div>
             <div class="user-info" style="display: flex; flex-direction: column;">
-              <span class="user-name" style="font-weight: 500; font-size: 0.95rem;">이경진</span>
-              <span style="font-size: 0.8rem; color: var(--text-muted); margin-top:2px;">Pro 요금제</span>
+              <span class="user-name" style="font-weight: 500; font-size: 0.95rem;">사용자</span>
             </div>
           </div>
           <div class="user-profile-icons" style="display: flex; align-items: center; gap: 6px; color: var(--text-muted);">
@@ -54,7 +53,7 @@
 
         <!-- 팝업 메뉴 UI -->
         <div class="user-menu-popup" id="userMenuPopup">
-          <div class="menu-email" id="menuEmail">vip7612@gmail.com</div>
+          <div class="menu-email" id="menuEmail">이메일</div>
           <div class="menu-divider"></div>
           
           <div class="menu-req-item" id="adminSettingMenu" style="display: none;">
@@ -72,7 +71,7 @@
           <div class="menu-req-item" id="automationSettingMenu" style="display: none;">
             <span><iconify-icon icon="lucide:bot"></iconify-icon> 자동화 설정</span>
           </div>
-          <div class="menu-req-item">
+          <div class="menu-req-item" id="accountSettingMenu">
             <span><iconify-icon icon="lucide:settings"></iconify-icon> 설정</span>
             <span class="shortcut">⌘,</span>
           </div>
@@ -82,22 +81,6 @@
           </div>
           <div class="menu-req-item">
             <span><iconify-icon icon="lucide:help-circle"></iconify-icon> 도움 받기</span>
-          </div>
-          
-          <div class="menu-divider"></div>
-          
-          <div class="menu-req-item">
-            <span><iconify-icon icon="lucide:arrow-up-circle"></iconify-icon> 요금제 업그레이드</span>
-          </div>
-          <div class="menu-req-item">
-            <span><iconify-icon icon="lucide:download"></iconify-icon> 앱 및 확장 프로그램 받기</span>
-          </div>
-          <div class="menu-req-item">
-            <span><iconify-icon icon="lucide:gift"></iconify-icon> Agent ONAi 선물하기</span>
-          </div>
-          <div class="menu-req-item">
-            <span><iconify-icon icon="lucide:info"></iconify-icon> 자세히 알아보기</span>
-            <iconify-icon icon="lucide:chevron-right"></iconify-icon>
           </div>
           
           <div class="menu-divider"></div>
@@ -259,6 +242,72 @@
         <div id="automationGalleryGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:16px;"></div>
       </div>
       <!-- 관리자 설정 뷰 (우측 패널) -->
+      <!-- 계정 설정 뷰 -->
+      <div id="accountSettingsView" style="display: none; flex: 1; flex-direction: column; padding: 24px; overflow-y: auto; background-color: var(--bg-main); max-width: 700px;">
+        <div style="margin-bottom:24px;">
+          <h2 style="font-weight: 600; font-size: 1.5rem; margin-bottom: 4px; display:flex; align-items:center; gap:8px;">
+            <iconify-icon icon="lucide:settings" style="color:#8b5cf6;"></iconify-icon> 설정
+          </h2>
+          <span style="color: var(--text-muted); font-size: 0.9rem;">내 계정과 환경을 맞춤 설정하세요.</span>
+        </div>
+        
+        <!-- 프로필 섹션 -->
+        <div style="margin-bottom:20px; padding:24px; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-sidebar);">
+          <h3 style="margin-bottom:16px; display:flex; align-items:center; gap:6px; font-size:1rem;">
+            <iconify-icon icon="lucide:user" style="color:#3b82f6;"></iconify-icon> 프로필
+          </h3>
+          <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
+            <div id="settingsAvatar" style="width:56px; height:56px; border-radius:50%; background:var(--bg-input); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; font-size:1.4rem; color:var(--text-high);"></div>
+            <div style="flex:1;">
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">표시 이름</div>
+              <input type="text" id="settingsDisplayName" placeholder="이름을 입력하세요" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); box-sizing:border-box; font-size:0.95rem;" />
+            </div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">이메일 계정</div>
+            <div id="settingsEmail" style="padding:10px; border-radius:8px; background:var(--bg-input); color:var(--text-muted); font-size:0.95rem; border:1px solid var(--border-color);"></div>
+          </div>
+          <div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">역할</div>
+            <div id="settingsRole" style="padding:10px; border-radius:8px; background:var(--bg-input); color:var(--text-muted); font-size:0.95rem; border:1px solid var(--border-color);"></div>
+          </div>
+        </div>
+
+        <!-- 환경 설정 -->
+        <div style="margin-bottom:20px; padding:24px; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-sidebar);">
+          <h3 style="margin-bottom:16px; display:flex; align-items:center; gap:6px; font-size:1rem;">
+            <iconify-icon icon="lucide:sliders-horizontal" style="color:#10b981;"></iconify-icon> 환경 설정
+          </h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border-color);">
+            <div>
+              <div style="font-weight:500;">알림</div>
+              <div style="font-size:0.8rem; color:var(--text-muted);">새 메시지 알림을 받습니다</div>
+            </div>
+            <label style="position:relative; width:44px; height:24px; cursor:pointer;">
+              <input type="checkbox" id="settingsNotification" style="opacity:0; width:0; height:0;">
+              <span style="position:absolute; top:0; left:0; right:0; bottom:0; background:var(--bg-input); border-radius:24px; transition:0.3s; border:1px solid var(--border-color);"></span>
+              <span id="notifToggleKnob" style="position:absolute; top:2px; left:2px; width:20px; height:20px; background:var(--text-muted); border-radius:50%; transition:0.3s;"></span>
+            </label>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0;">
+            <div>
+              <div style="font-weight:500;">다크 모드</div>
+              <div style="font-size:0.8rem; color:var(--text-muted);">항상 다크 테마를 사용합니다</div>
+            </div>
+            <label style="position:relative; width:44px; height:24px; cursor:pointer;">
+              <input type="checkbox" id="settingsDarkMode" checked style="opacity:0; width:0; height:0;">
+              <span style="position:absolute; top:0; left:0; right:0; bottom:0; background:#3b82f6; border-radius:24px; transition:0.3s;"></span>
+              <span id="darkToggleKnob" style="position:absolute; top:2px; left:22px; width:20px; height:20px; background:#fff; border-radius:50%; transition:0.3s;"></span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- 저장 버튼 -->
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button id="saveAccountSettings" style="padding:10px 24px; border-radius:8px; background:linear-gradient(135deg, #8b5cf6, #3b82f6); border:none; color:#fff; cursor:pointer; font-weight:500; font-size:0.95rem;">저장</button>
+        </div>
+      </div>
+
       <div id="adminSettingsView" style="display: none; flex: 1; flex-direction: column; padding: 24px; overflow-y: auto; background-color: var(--bg-main);">
         <div style="margin-bottom:24px;">
           <h2 style="font-weight: 600; font-size: 1.5rem; margin-bottom: 4px; display:flex; align-items:center; gap:8px;">

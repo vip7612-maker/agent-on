@@ -29,7 +29,7 @@ if (urlParams.has('room_id')) {
 
 // 모든 메인 뷰를 숨기고 지정한 뷰만 표시
 function showMainView(viewId) {
-  var views = ['chatView', 'historyView', 'boardView', 'harnessGalleryView', 'automationGalleryView', 'adminSettingsView', 'landingView'];
+  var views = ['chatView', 'historyView', 'boardView', 'harnessGalleryView', 'automationGalleryView', 'adminSettingsView', 'accountSettingsView', 'landingView'];
   views.forEach(function(id) {
     var el = document.getElementById(id);
     if(el) el.style.display = 'none';
@@ -844,10 +844,48 @@ window.addEventListener('DOMContentLoaded', () => {
   const adminMenu = document.getElementById('adminSettingMenu');
   if(adminMenu) {
     adminMenu.addEventListener('click', () => {
-      // 모든 뷰 숨기고 관리자 설정 뷰 표시
       showMainView('adminSettingsView');
       loadAdminData();
       document.getElementById('userMenuPopup').classList.remove('show');
+    });
+  }
+
+  // --- 계정 설정 연결 ---
+  const accountMenu = document.getElementById('accountSettingMenu');
+  if(accountMenu) {
+    accountMenu.addEventListener('click', () => {
+      showMainView('accountSettingsView');
+      loadAccountSettings();
+      document.getElementById('userMenuPopup').classList.remove('show');
+    });
+  }
+  
+  const saveAccBtn = document.getElementById('saveAccountSettings');
+  if(saveAccBtn) {
+    saveAccBtn.addEventListener('click', async () => {
+      const newName = document.getElementById('settingsDisplayName').value.trim();
+      if(!newName) return alert('이름을 입력해주세요.');
+      const email = getCurrentUserEmail();
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ email, name: newName })
+        });
+        const data = await res.json();
+        if(data.success) {
+          // 로컬 스토리지 업데이트
+          const u = JSON.parse(localStorage.getItem('agentOn_user'));
+          u.name = newName;
+          localStorage.setItem('agentOn_user', JSON.stringify(u));
+          // 사이드바 이름도 업데이트
+          const un = document.querySelector('.user-name');
+          if(un) un.textContent = newName;
+          // 환영 문구도 업데이트
+          applyUserInfo(u);
+          alert('저장되었습니다.');
+        }
+      } catch(e) { alert('저장 실패'); }
     });
   }
 
@@ -881,6 +919,38 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// 계정 설정 뷰에 현재 정보 로드
+function loadAccountSettings() {
+  const u = localStorage.getItem('agentOn_user');
+  if(!u) return;
+  const user = JSON.parse(u);
+  
+  // 프로필 사진
+  const avatarEl = document.getElementById('settingsAvatar');
+  if(avatarEl) {
+    if(user.picture) {
+      avatarEl.innerHTML = `<img src="${user.picture}" style="width:100%;height:100%;object-fit:cover;" alt="">`;
+    } else {
+      avatarEl.textContent = (user.name || '?').charAt(0);
+    }
+  }
+  
+  // 이름
+  const nameEl = document.getElementById('settingsDisplayName');
+  if(nameEl) nameEl.value = user.name || '';
+  
+  // 이메일
+  const emailEl = document.getElementById('settingsEmail');
+  if(emailEl) emailEl.textContent = user.email || '';
+  
+  // 역할
+  const roleEl = document.getElementById('settingsRole');
+  if(roleEl) {
+    const roleMap = {'ADMIN': '관리자', 'APPROVED': '승인된 사용자', 'PENDING': '승인 대기'};
+    roleEl.textContent = roleMap[window.currentUserRole] || window.currentUserRole || '알 수 없음';
+  }
+}
 
 // --- 회원 관리 및 그룹 채팅 로직 ---
 async function initUserBackend(userInfo) {

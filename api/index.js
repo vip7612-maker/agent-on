@@ -138,6 +138,17 @@ async function initDb() {
     try { await db.execute('ALTER TABLE messages ADD COLUMN room_id INTEGER NULL'); } catch(e){}
     try { await db.execute('ALTER TABLE messages ADD COLUMN sender_email TEXT NULL'); } catch(e){}
     try { await db.execute('ALTER TABLE users ADD COLUMN picture TEXT NULL'); } catch(e){}
+    // 계정별 하네스 노출 설정 테이블
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS user_harness_prefs (
+        user_email TEXT NOT NULL,
+        harness_id INTEGER NOT NULL,
+        is_enabled INTEGER DEFAULT 1,
+        PRIMARY KEY (user_email, harness_id),
+        FOREIGN KEY(user_email) REFERENCES users(email),
+        FOREIGN KEY(harness_id) REFERENCES harnesses(id)
+      )
+    `);
     // 기존 데이터 마이그레이션: sender_email이 없는 ONAi 채팅 메시지를 최초 관리자 계정으로 귀속
     try { await db.execute(`UPDATE messages SET sender_email = 'vip7612@gmail.com' WHERE sender_email IS NULL AND room_id IS NULL`); } catch(e){}
 
@@ -487,24 +498,46 @@ app.post('/api/admin/users/approve', async (req, res) => {
 // [하네스 관리] API
 // =====================================
 
-// 노출된 하네스 목록 (채팅창 팝업용)
+// 노출된 하네스 목록 (채팅창 팝업용 - 계정별 설정 반영)
 app.get('/api/harnesses', async (req, res) => {
   try {
-    const result = await db.execute('SELECT id, title, content FROM harnesses WHERE is_visible = 1 ORDER BY id ASC');
-    res.json({ success: true, harnesses: result.rows });
+    const userEmail = req.headers['user-email'] || null;
+    if (userEmail) {
+      // 계정별 설정이 있으면 그것을 우선, 없으면 글로벌 is_visible 사용
+      const result = await db.execute({
+        sql: `SELECT h.id, h.title, h.content 
+              FROM harnesses h 
+              LEFT JOIN user_harness_prefs p ON h.id = p.harness_id AND p.user_email = ?
+              WHERE COALESCE(p.is_enabled, h.is_visible) = 1
+              ORDER BY h.id ASC`,
+        args: [userEmail]
+      });
+      res.json({ success: true, harnesses: result.rows });
+    } else {
+      const result = await db.execute('SELECT id, title, content FROM harnesses WHERE is_visible = 1 ORDER BY id ASC');
+      res.json({ success: true, harnesses: result.rows });
+    }
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// 전체 하네스 목록 (어드민 관리용)
+// 전체 하네스 목록 (어드민/사용자 관리용 - 계정별 노출 상태 포함)
 app.get('/api/admin/harnesses', async (req, res) => {
   const email = req.headers['user-email'];
   try {
     const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
-    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
-    const result = await db.execute('SELECT * FROM harnesses ORDER BY id ASC');
-    res.json({ success: true, harnesses: result.rows });
+    if (!caller.rows.length || (caller.rows[0].role !== 'ADMIN' && caller.rows[0].role !== 'APPROVED')) return res.status(403).json({ error: 'Forbidden' });
+    const isAdmin = caller.rows[0].role === 'ADMIN';
+    // 계정별 노출 설정을 JOIN
+    const result = await db.execute({
+      sql: `SELECT h.*, COALESCE(p.is_enabled, h.is_visible) as user_enabled 
+            FROM harnesses h 
+            LEFT JOIN user_harness_prefs p ON h.id = p.harness_id AND p.user_email = ?
+            ORDER BY h.id ASC`,
+      args: [email]
+    });
+    res.json({ success: true, harnesses: result.rows, isAdmin });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
@@ -539,7 +572,7 @@ app.put('/api/admin/harnesses/:id', async (req, res) => {
   }
 });
 
-// 하네스 삭제
+// 하네스 삭제 (ADMIN만)
 app.delete('/api/admin/harnesses/:id', async (req, res) => {
   const email = req.headers['user-email'];
   const { id } = req.params;
@@ -547,7 +580,31 @@ app.delete('/api/admin/harnesses/:id', async (req, res) => {
     const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
     if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
     await db.execute({ sql: 'DELETE FROM harnesses WHERE id=?', args: [id] });
+    await db.execute({ sql: 'DELETE FROM user_harness_prefs WHERE harness_id=?', args: [id] });
     res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 계정별 하네스 노출 토글 (ADMIN + APPROVED)
+app.put('/api/harnesses/:id/toggle', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { id } = req.params;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || (caller.rows[0].role !== 'ADMIN' && caller.rows[0].role !== 'APPROVED')) return res.status(403).json({ error: 'Forbidden' });
+    // 기존 설정 확인
+    const existing = await db.execute({ sql: 'SELECT is_enabled FROM user_harness_prefs WHERE user_email=? AND harness_id=?', args: [email, id] });
+    if (existing.rows.length > 0) {
+      const newVal = existing.rows[0].is_enabled ? 0 : 1;
+      await db.execute({ sql: 'UPDATE user_harness_prefs SET is_enabled=? WHERE user_email=? AND harness_id=?', args: [newVal, email, id] });
+      res.json({ success: true, is_enabled: newVal });
+    } else {
+      // 기록이 없으면 새로 생성 (OFF로 토글)
+      await db.execute({ sql: 'INSERT INTO user_harness_prefs (user_email, harness_id, is_enabled) VALUES (?, ?, 0)', args: [email, id] });
+      res.json({ success: true, is_enabled: 0 });
+    }
   } catch(e) {
     res.status(500).json({ error: e.message });
   }

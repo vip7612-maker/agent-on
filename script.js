@@ -212,9 +212,18 @@ function applyUserInfo(userInfo) {
       if(chatRoomTitle) chatRoomTitle.innerText = popupRoomName;
     }
 
+    // 환영 문구를 로그인 계정 이름에 맞춤 개인화
     const greetingTitle = document.getElementById('welcomeTitle');
-    if (greetingTitle && greetingTitle.textContent.includes('교장님')) {
-      greetingTitle.textContent = greetingTitle.textContent.replace('교장님', userInfo.name + ' 교장님');
+    if (greetingTitle) {
+      const hour = new Date().getHours();
+      let emoji = '☀️', timeText = '좋은 하루입니다';
+      if (hour >= 5 && hour < 12) { emoji = '☀️'; timeText = '좋은 아침입니다'; }
+      else if (hour >= 12 && hour < 14) { emoji = '🌞'; timeText = '활기찬 오후입니다'; }
+      else if (hour >= 14 && hour < 18) { emoji = '☕'; timeText = '좋은 오후입니다'; }
+      else if (hour >= 18 && hour < 22) { emoji = '🌙'; timeText = '좋은 저녁입니다'; }
+      else { emoji = '🌙'; timeText = '좋은 밤입니다'; }
+      const displayName = userInfo.name || userInfo.given_name || '사용자';
+      greetingTitle.textContent = `${emoji} ${timeText}, ${displayName}님`;
     }
   }
   
@@ -1051,7 +1060,7 @@ function initHarnessPopup() {
     }
     // 서버에서 노출용 하네스 목록 가져오기
     try {
-      const res = await fetch('/api/harnesses');
+      const res = await fetch('/api/harnesses', { headers: { 'User-Email': getCurrentUserEmail() } });
       const data = await res.json();
       const listEl = document.getElementById('harnessListChat');
       if(data.success && data.harnesses.length > 0) {
@@ -1129,33 +1138,44 @@ window.createHarness = async function() {
   }
 }
 
-// 하네스 갤러리 그리드 렌더링 (썸네일 카드)
+// 하네스 갤러리 그리드 렌더링 (역할별 분기)
 async function loadHarnessGallery() {
   const userInfoStr = localStorage.getItem('agentOn_user');
   if(!userInfoStr) return;
   const email = JSON.parse(userInfoStr).email;
-  const isAdmin = (window.currentUserRole === 'ADMIN');
-  const endpoint = isAdmin ? '/api/admin/harnesses' : '/api/harnesses';
-  const headers = isAdmin ? {'User-Email': email} : {};
   try {
-    const res = await fetch(endpoint, { headers });
+    const res = await fetch('/api/admin/harnesses', { headers: {'User-Email': email} });
     const data = await res.json();
     const grid = document.getElementById('harnessGalleryGrid');
     if(!grid) return;
+    const isAdmin = data.isAdmin;
+    
+    // 새 하네스 추가 버튼 표시/숨김
+    const addBtn = document.getElementById('addHarnessBtn');
+    if(addBtn) addBtn.style.display = isAdmin ? '' : 'none';
+    
     if(data.success && data.harnesses && data.harnesses.length > 0) {
       const colors = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
       grid.innerHTML = data.harnesses.map(function(h) {
         var color = colors[h.id % colors.length];
-        var badge = isAdmin ? '<span style="position:absolute;top:8px;right:8px;font-size:0.7rem;padding:2px 6px;border-radius:4px;background:'+(h.is_visible?'rgba(16,185,129,0.2)':'rgba(239,68,68,0.2)')+';color:'+(h.is_visible?'#10b981':'#ef4444')+';">'+(h.is_visible?'노출':'숨김')+'</span>' : '';
-        var btns = isAdmin ? '<div style="display:flex;gap:6px;margin-top:12px;border-top:1px solid var(--border-color);padding-top:10px;"><button onclick="event.stopPropagation();window.openHarnessEdit('+h.id+')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:#f59e0b;cursor:pointer;font-size:0.8rem;">수정</button><button onclick="event.stopPropagation();window.toggleHarnessVisibility('+h.id+')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:var(--text-muted);cursor:pointer;font-size:0.8rem;">'+(h.is_visible?'숨기기':'노출')+'</button><button onclick="event.stopPropagation();window.deleteHarness('+h.id+')" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#ef4444;cursor:pointer;font-size:0.8rem;">삭제</button></div>' : '';
-        return '<div class="harness-card" data-id="'+h.id+'" data-visible="'+h.is_visible+'" style="position:relative;padding:20px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-sidebar);cursor:pointer;transition:all 0.2s;overflow:hidden;">'+badge+'<div style="width:48px;height:48px;border-radius:12px;background:'+color+'18;display:flex;align-items:center;justify-content:center;margin-bottom:14px;"><iconify-icon icon="lucide:zap" style="font-size:1.4rem;color:'+color+';"></iconify-icon></div><div style="font-weight:600;font-size:1rem;margin-bottom:6px;">'+h.title+'</div><div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;">'+h.content+'</div>'+btns+'</div>';
+        var enabled = h.user_enabled;
+        // 배지: 내 계정 기준 노출/비노출
+        var badge = '<span style="position:absolute;top:8px;right:8px;font-size:0.7rem;padding:2px 6px;border-radius:4px;background:'+(enabled?'rgba(16,185,129,0.2)':'rgba(239,68,68,0.2)')+';color:'+(enabled?'#10b981':'#ef4444')+';">'+(enabled?'사용 중':'비활성')+'</span>';
+        var btns = '';
+        if (isAdmin) {
+          btns = '<div style="display:flex;gap:6px;margin-top:12px;border-top:1px solid var(--border-color);padding-top:10px;"><button onclick="event.stopPropagation();window.openHarnessEdit('+h.id+')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:#f59e0b;cursor:pointer;font-size:0.8rem;">수정</button><button onclick="event.stopPropagation();window.toggleMyHarness('+h.id+')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:var(--text-muted);cursor:pointer;font-size:0.8rem;">'+(enabled?'비활성':'활성')+'</button><button onclick="event.stopPropagation();window.deleteHarness('+h.id+')" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#ef4444;cursor:pointer;font-size:0.8rem;">삭제</button></div>';
+        } else {
+          btns = '<div style="display:flex;gap:6px;margin-top:12px;border-top:1px solid var(--border-color);padding-top:10px;"><button onclick="event.stopPropagation();window.toggleMyHarness('+h.id+')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:'+(enabled?'#ef4444':'#10b981')+';cursor:pointer;font-size:0.8rem;">'+(enabled?'비활성하기':'활성하기')+'</button></div>';
+        }
+        var opacity = enabled ? '1' : '0.5';
+        return '<div class="harness-card" data-id="'+h.id+'" data-enabled="'+enabled+'" style="position:relative;padding:20px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-sidebar);cursor:pointer;transition:all 0.2s;overflow:hidden;opacity:'+opacity+';">'+badge+'<div style="width:48px;height:48px;border-radius:12px;background:'+color+'18;display:flex;align-items:center;justify-content:center;margin-bottom:14px;"><iconify-icon icon="lucide:zap" style="font-size:1.4rem;color:'+color+';"></iconify-icon></div><div style="font-weight:600;font-size:1rem;margin-bottom:6px;">'+h.title+'</div><div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;">'+h.content+'</div>'+btns+'</div>';
       }).join('');
       grid.querySelectorAll('.harness-card').forEach(function(card) {
         card.addEventListener('click', function() {
           var hId = parseInt(card.dataset.id);
-          var vis = card.dataset.visible;
+          var en = card.dataset.enabled;
           var harness = data.harnesses.find(function(h){return h.id === hId;});
-          if(harness && (vis === '1' || vis === 1)) {
+          if(harness && (en === '1' || en === 1)) {
             selectHarness(harness);
             document.getElementById('navChat').click();
           }
@@ -1165,6 +1185,19 @@ async function loadHarnessGallery() {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-muted);"><iconify-icon icon="lucide:inbox" style="font-size:3rem;margin-bottom:12px;display:block;"></iconify-icon><div style="font-size:1.1rem;margin-bottom:8px;">등록된 하네스가 없습니다</div><div style="font-size:0.9rem;">'+(isAdmin?'"+ 새 하네스" 버튼을 눌러 첫 하네스를 만들어보세요.':'관리자가 하네스를 등록하면 여기에 표시됩니다.')+'</div></div>';
     }
   } catch(e) { console.error('Gallery load failed:', e); }
+}
+
+// 계정별 하네스 노출 토글
+window.toggleMyHarness = async function(id) {
+  const email = getCurrentUserEmail();
+  try {
+    const res = await fetch('/api/harnesses/' + id + '/toggle', {
+      method: 'PUT',
+      headers: {'User-Email': email}
+    });
+    const data = await res.json();
+    if(data.success) loadHarnessGallery();
+  } catch(e) { console.error(e); }
 }
 
 // 로고 버튼 → 하네스 갤러리 뷰 열기

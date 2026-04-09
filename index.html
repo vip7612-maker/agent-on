@@ -475,11 +475,8 @@
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
         <button onclick="document.getElementById('automationEditModal').style.display='none'" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-muted); cursor:pointer;">취소</button>
         <button onclick="window.saveAutomationEdit()" style="padding:8px 16px; border-radius:8px; background:linear-gradient(135deg, #10b981, #3b82f6); border:none; color:#fff; cursor:pointer; font-weight:500;">저장</button>
-      </div>
     </div>
   </div>
-  </div>
-
   <!-- 그룹챗 공유 팝업 -->
   <div id="sharePopup" style="display:none; position:fixed; background:var(--bg-main); border:1px solid var(--border-color); border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.5); width:200px; padding:8px; z-index:10000; flex-direction:column; gap:4px;">
     <div style="font-size:0.85rem; color:var(--text-muted); padding:4px 8px; margin-bottom:4px; border-bottom:1px solid var(--border-color);">어느 방으로 전달할까요?</div>
@@ -591,6 +588,6 @@
       } catch(e) { console.error('Inline auto-login failed', e); }
     })();
   </script>
-  <script src="script.js?v=5.1"></script>
+  <script src="script.js?v=5.2"></script>
 </body>
 </html>

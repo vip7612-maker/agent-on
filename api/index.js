@@ -27,34 +27,76 @@ function getGlobalSessionDate() {
   return date.toISOString().split('T')[0];
 }
 
-// 테이블 초기화
+// 테이블 초기화 및 마이그레이션
 async function initDb() {
   try {
     await db.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        email TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        role TEXT DEFAULT 'PENDING',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS rooms (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        created_by TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(created_by) REFERENCES users(email)
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS room_members (
+        room_id INTEGER,
+        user_email TEXT,
+        joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (room_id, user_email),
+        FOREIGN KEY(room_id) REFERENCES rooms(id),
+        FOREIGN KEY(user_email) REFERENCES users(email)
+      )
+    `);
+
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        room_id INTEGER NULL,
+        sender_email TEXT NULL,
         role TEXT NOT NULL,
         content TEXT NOT NULL,
+        is_pinned INTEGER DEFAULT 0,
+        session_date TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        session_date TEXT
+        FOREIGN KEY(room_id) REFERENCES rooms(id)
       )
     `);
     
-    // session_date 마이그레이션 (기존 데이터 호환)
+    // Seed initial admin if not exists
     try {
-      await db.execute('ALTER TABLE messages ADD COLUMN session_date TEXT');
-      await db.execute({
-        sql: 'UPDATE messages SET session_date = ? WHERE session_date IS NULL',
-        args: [getGlobalSessionDate()]
-      });
-    } catch(e) {} // 이미 존재하면 조용히 넘어감
-    
-    // is_pinned 마이그레이션 (보드 기능 호환)
-    try {
-      await db.execute('ALTER TABLE messages ADD COLUMN is_pinned INTEGER DEFAULT 0');
-    } catch(e) {} // 이미 존재하면 조용히 넘어감
-    
-    console.log('[Turso DB] messages 테이블 준비 완료.');
+      await db.execute(`INSERT OR IGNORE INTO users (email, name, role) VALUES ('vip7612@gmail.com', 'Admin', 'ADMIN')`);
+      await db.execute(`INSERT OR IGNORE INTO users (email, name, role) VALUES ('vip776@haemill.ms.kr', 'Haemill', 'APPROVED')`);
+      await db.execute(`INSERT OR IGNORE INTO users (email, name, role) VALUES ('vip776@a4k.ai', 'A4K', 'APPROVED')`);
+      
+      const res = await db.execute(`SELECT id FROM rooms WHERE name = '사무국'`);
+      if (res.rows.length === 0) {
+        const roomRes = await db.execute(`INSERT INTO rooms (name, created_by) VALUES ('사무국', 'vip7612@gmail.com') RETURNING id`);
+        const roomId = roomRes.rows[0].id;
+        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip7612@gmail.com']);
+        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@haemill.ms.kr']);
+      }
+    } catch(e) { console.log('Seed skip:', e.message); }
+
+    // 마이그레이션 속성들
+    try { await db.execute('ALTER TABLE messages ADD COLUMN session_date TEXT'); } catch(e){}
+    try { await db.execute({ sql: 'UPDATE messages SET session_date = ? WHERE session_date IS NULL', args: [getGlobalSessionDate()] }); } catch(e){}
+    try { await db.execute('ALTER TABLE messages ADD COLUMN is_pinned INTEGER DEFAULT 0'); } catch(e){}
+    try { await db.execute('ALTER TABLE messages ADD COLUMN room_id INTEGER NULL'); } catch(e){}
+    try { await db.execute('ALTER TABLE messages ADD COLUMN sender_email TEXT NULL'); } catch(e){}
+
+    console.log('[Turso DB] 모든 테이블 준비 및 마이그레이션 완료.');
   } catch (err) {
     console.error('[Turso DB] 테이블 초기화 실패:', err);
   }
@@ -219,6 +261,122 @@ app.get('/api/board', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: 'DB Error' });
+  }
+});
+
+// =====================================
+// [그룹 채팅 및 회원 관리] API
+// =====================================
+
+// 로그인 (사용자 등록)
+app.post('/api/auth/login', async (req, res) => {
+  const { email, name } = req.body;
+  if(!email) return res.status(400).json({ error: 'Email required' });
+  try {
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO users (email, name, role) VALUES (?, ?, 'PENDING')`,
+      args: [email, name || email.split('@')[0]]
+    });
+    const user = await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] });
+    res.json({ success: true, user: user.rows[0] });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 소속된 단체 채팅룸 목록
+app.get('/api/rooms', async (req, res) => {
+  const email = req.headers['user-email'];
+  if(!email) return res.status(401).json({ error: 'Auth required' });
+  try {
+    const result = await db.execute({
+      sql: `SELECT r.id, r.name FROM rooms r JOIN room_members rm ON r.id = rm.room_id WHERE rm.user_email = ?`,
+      args: [email]
+    });
+    res.json({ success: true, rooms: result.rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 어드민용: 모든 사용자 목록 (가입 승인 등)
+app.get('/api/admin/users', async (req, res) => {
+  const email = req.headers['user-email'];
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    const users = await db.execute('SELECT * FROM users ORDER BY created_at DESC');
+    res.json({ success: true, users: users.rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 어드민용: 모든 방 목록 및 멤버 정보
+app.get('/api/admin/rooms', async (req, res) => {
+  const email = req.headers['user-email'];
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    const rooms = await db.execute('SELECT * FROM rooms');
+    const members = await db.execute('SELECT * FROM room_members');
+    res.json({ success: true, rooms: rooms.rows, members: members.rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/rooms', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { name } = req.body;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    await db.execute({ sql: 'INSERT INTO rooms (name, created_by) VALUES (?, ?)', args: [name, email] });
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/rooms/invite', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { roomId, targetEmail } = req.body;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    await db.execute({ sql: 'INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)', args: [roomId, targetEmail] });
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/admin/rooms/remove', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { roomId, targetEmail } = req.body;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    await db.execute({ sql: 'DELETE FROM room_members WHERE room_id = ? AND user_email = ?', args: [roomId, targetEmail] });
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 어드민용: 회원 승인
+app.post('/api/admin/users/approve', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { targetEmail, role } = req.body;
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    await db.execute({ sql: 'UPDATE users SET role = ? WHERE email = ?', args: [role || 'APPROVED', targetEmail] });
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

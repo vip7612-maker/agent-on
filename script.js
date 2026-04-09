@@ -170,6 +170,7 @@ function applyUserInfo(userInfo) {
   
   isViewingHistory = false;
   syncChats();
+  initUserBackend(userInfo);
 }
 
 // 대화 내역 실시간 동기화 (폴링 기법)
@@ -645,4 +646,122 @@ window.addEventListener('DOMContentLoaded', () => {
       });
     }
   }
+
+  // --- 관리자 모달 이벤트 연결 ---
+  const adminMenu = document.getElementById('adminSettingMenu');
+  if(adminMenu) {
+    adminMenu.addEventListener('click', () => {
+      document.getElementById('adminModal').style.display = 'flex';
+      loadAdminData();
+      document.getElementById('userMenuPopup').classList.remove('show');
+    });
+  }
 });
+
+// --- 회원 관리 및 그룹 채팅 로직 ---
+async function initUserBackend(userInfo) {
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email: userInfo.email, name: userInfo.name })
+    });
+    const data = await res.json();
+    if(data.success) {
+      window.currentUserRole = data.user.role;
+      if(data.user.role === 'ADMIN') {
+        const adminMenu = document.getElementById('adminSettingMenu');
+        if(adminMenu) adminMenu.style.display = 'flex';
+      }
+      fetchMyRooms(userInfo.email);
+    }
+  } catch(e) { console.error('Backend init failed', e); }
+}
+
+async function fetchMyRooms(email) {
+  try {
+    const res = await fetch('/api/rooms', { headers: {'User-Email': email} });
+    const data = await res.json();
+    if(data.success && data.rooms) {
+      const container = document.getElementById('groupRoomsList');
+      if(container) {
+        container.innerHTML = data.rooms.map(r => `
+          <div class="nav-item group-room-btn" data-id="${r.id}" style="padding: 10px 16px;">
+            <iconify-icon icon="lucide:hash"></iconify-icon> <span class="nav-label">${r.name}</span>
+          </div>
+        `).join('');
+      }
+    }
+  } catch(e) { console.error('Rooms fetch failed', e); }
+}
+
+async function loadAdminData() {
+  const userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  const email = JSON.parse(userInfoStr).email;
+  
+  // Load users
+  try {
+    const userRes = await fetch('/api/admin/users', { headers: {'User-Email': email} });
+    const userData = await userRes.json();
+    if(userData.success) {
+      document.getElementById('adminUsersList').innerHTML = userData.users.map(u => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid var(--border-color); border-radius:8px;">
+          <div><b>${u.name}</b> (${u.email}) - <span style="color:${u.role==='APPROVED'?'#10b981':(u.role==='PENDING'?'#f59e0b':'#3b82f6')}">${u.role}</span></div>
+          <button onclick="window.approveUser('${u.email}', 'APPROVED')" style="padding:4px 8px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-main); color:var(--text-main); cursor:pointer;">승인</button>
+        </div>
+      `).join('');
+    }
+  } catch(e) {}
+
+  // Load Rooms/Members
+  try {
+    const roomRes = await fetch('/api/admin/rooms', { headers: {'User-Email': email} });
+    const roomData = await roomRes.json();
+    if(roomData.success) {
+      const secretariat = roomData.rooms.find(r => r.name === '사무국');
+      const targetRoomId = secretariat ? secretariat.id : 1;
+      const usersInRoom = roomData.members.filter(m => m.room_id === targetRoomId).map(m => m.user_email);
+      document.getElementById('adminRoomMembersList').innerHTML = `
+        <div style="margin-bottom:8px; font-size:0.9rem; color:var(--text-muted);">현재 멤버: ${usersInRoom.join(', ')}</div>
+        <div style="display:flex; gap:8px;">
+           <input type="text" id="inviteEmail" placeholder="초대할 이메일 입력" style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-main);" />
+           <button onclick="window.inviteUser(${targetRoomId})" style="padding:8px 16px; border-radius:8px; background:var(--user-msg); border:none; cursor:pointer;">초대</button>
+        </div>
+      `;
+    }
+  } catch(e) {}
+}
+
+window.approveUser = async function(targetEmail, role) {
+  const userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  const email = JSON.parse(userInfoStr).email;
+  await fetch('/api/admin/users/approve', {
+    method: 'POST',
+    headers: {"Content-Type": "application/json", "User-Email": email},
+    body: JSON.stringify({ targetEmail, role })
+  });
+  alert('승인 처리되었습니다.');
+  loadAdminData();
+}
+
+window.inviteUser = async function(roomId) {
+  const userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  const email = JSON.parse(userInfoStr).email;
+  const targetEmail = document.getElementById('inviteEmail').value;
+  if(!targetEmail) return;
+  const res = await fetch('/api/admin/rooms/invite', {
+    method: 'POST',
+    headers: {"Content-Type": "application/json", "User-Email": email},
+    body: JSON.stringify({ roomId, targetEmail })
+  });
+  const data = await res.json();
+  if(data.success) {
+    alert('초대되었습니다.');
+    loadAdminData();
+  } else {
+    alert('초대 실패: ' + (data.error || '알 수 없는 에러'));
+  }
+}

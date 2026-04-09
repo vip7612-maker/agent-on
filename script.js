@@ -597,6 +597,65 @@ function timeSince(dateString) {
 }
 
 async function loadHistoryList() {
+window.openRoomInMainView = function(roomId, roomName, btnElement) {
+  isViewingHistory = false;
+  currentRoomId = roomId;
+
+  // 하이라이트 상태 업데이트
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.group-room-btn').forEach(el => el.classList.remove('active'));
+  if (btnElement) btnElement.classList.add('active');
+
+  // 화면 뷰 전환
+  const chatView = document.getElementById('chatView');
+  const historyView = document.getElementById('historyView');
+  const boardView = document.getElementById('boardView');
+  if(chatView) chatView.style.display = 'flex';
+  if(historyView) historyView.style.display = 'none';
+  if(boardView) boardView.style.display = 'none';
+  const lv = document.getElementById('landingView'); if(lv) lv.style.display = 'none';
+  const adv = document.getElementById('adminSettingsView'); if(adv) adv.style.display = 'none';
+  const acv = document.getElementById('accountSettingsView'); if(acv) acv.style.display = 'none';
+  
+  // 헤더 및 환영 메시지 처리
+  const chatRoomHeader = document.getElementById('chatRoomHeader');
+  const chatRoomTitle = document.getElementById('chatRoomTitle');
+  if(chatRoomHeader) chatRoomHeader.style.display = 'flex';
+  if(chatRoomTitle) chatRoomTitle.innerText = roomName;
+  const subTitleEl = document.querySelector('.welcome-subtitle');
+  if(subTitleEl) subTitleEl.innerText = roomName + ' 채팅방에 오신 것을 환영합니다';
+
+  // 버튼/입력창 처리 (팝업모드와 동일하게 하네스 숨김, 파일첨부 보임)
+  const harnessBtn = document.getElementById('harnessBtn');
+  if(harnessBtn) harnessBtn.style.display = 'none';
+  const harnessPopup = document.getElementById('harnessPopup');
+  if(harnessPopup) harnessPopup.style.display = 'none';
+  const attachBtn = document.getElementById('attachBtn');
+  if(attachBtn) attachBtn.style.display = '';
+  
+  const inputEl = document.getElementById('chatInput');
+  if(inputEl) {
+    inputEl.setAttribute('data-placeholder', '메시지를 입력하세요.');
+    if (inputEl.innerText.trim() === '') {
+      const ph = document.getElementById('placeholder');
+      if (ph) ph.textContent = '메시지를 입력하세요.';
+    }
+  }
+
+  // 메시지 화면 초기화 및 동기화 재시작
+  messagesEl.innerHTML = '';
+  messagesEl.style.display = 'none';
+  welcomeScreen.style.display = 'flex';
+  currentMsgCount = -1; // 강제 새로고침 플래그
+  if(typeof syncChats === 'function') syncChats();
+
+  // 모바일인 경우 사이드바 닫기
+  const sb = document.querySelector('.sidebar');
+  if (window.innerWidth <= 768 && sb.classList.contains('open')) {
+    sb.classList.remove('open');
+  }
+};
+
   if (!historyList) return;
   try {
     historyList.innerHTML = '<div style="padding:16px;color:var(--text-muted);">과거 대화 불러오는 중...</div>';
@@ -1092,13 +1151,9 @@ async function fetchMyRooms(email) {
           btn.addEventListener('click', () => {
             const roomId = btn.getAttribute('data-id');
             const rName = btn.innerText.trim();
-            const width = 450;
-            const height = 750;
-            const left = (window.innerWidth / 2) - (width / 2) + window.screenX;
-            const top = (window.innerHeight / 2) - (height / 2) + window.screenY;
-            const features = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no`;
-            
-            window.open(`/?room_id=${roomId}&room_name=${encodeURIComponent(rName)}`, `groupchat_${roomId}`, features);
+            if(typeof window.openRoomInMainView === 'function') {
+              window.openRoomInMainView(roomId, rName, btn);
+            }
           });
         });
       }

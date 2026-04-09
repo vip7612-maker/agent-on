@@ -148,7 +148,7 @@ async function syncChats() {
         loadingDiv.id = 'loadingIndicator';
         const lContent = document.createElement('div');
         lContent.className = 'message-content';
-        lContent.textContent = '온비서(안티그래비티) 작동 중...';
+        lContent.textContent = 'Agent ONAi 작동 중...';
         loadingDiv.appendChild(lContent);
         messagesEl.appendChild(loadingDiv);
       }
@@ -186,7 +186,7 @@ async function handleSend() {
   loadingDiv.id = 'loadingIndicator';
   const lContent = document.createElement('div');
   lContent.className = 'message-content';
-  lContent.textContent = '온비서(안티그래비티) 작동 중...';
+  lContent.textContent = 'Agent ONAi 작동 중...';
   loadingDiv.appendChild(lContent);
   messagesEl.appendChild(loadingDiv);
   

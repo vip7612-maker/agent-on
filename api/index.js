@@ -102,21 +102,21 @@ app.post('/api/chat', async (req, res) => {
       }
     }
 
-    // 2. 온비서 AI (Gemini) 연동 로직 (안티그래비티가 오프라인이거나 미설정일 때)
+    // 2. Agent ONAi (Gemini) 연동 로직 (안티그래비티가 오프라인이거나 미설정일 때)
     let botResponse = '';
     if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'DUMMY_KEY') {
       try {
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
-          contents: `당신의 이름은 '온비서(Agent On)'이며, 친절하고 다재다능한 AI 비서입니다. 사용자 메시지: ${message}`
+          contents: `당신의 이름은 'Agent ONAi'이며, 친절하고 다재다능한 AI 비서입니다. 사용자 메시지: ${message}`
         });
         botResponse = response.text;
       } catch (apiErr) {
         console.error('[Gemini API Error]:', apiErr.message);
-        botResponse = `온비서 API 연결 중 오류가 발생했습니다. (${apiErr.message})`;
+        botResponse = `Agent ONAi API 연결 중 오류가 발생했습니다. (${apiErr.message})`;
       }
     } else {
-      botResponse = `[온비서] 알림: 다른 맥미니의 안티그래비티 연동 URL(.env 의 ANTIGRAVITY_WEBHOOK_URL) 이 없습니다. 연결을 확인해 주세요. (메시지: ${message})`;
+      botResponse = `[Agent ONAi] 알림: 다른 맥미니의 안티그래비티 연동 URL(.env 의 ANTIGRAVITY_WEBHOOK_URL) 이 없습니다. 연결을 확인해 주세요. (메시지: ${message})`;
     }
     
     // AI 응답 저장

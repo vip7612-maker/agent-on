@@ -92,12 +92,19 @@ async function initDb() {
       await db.execute(`INSERT OR IGNORE INTO users (email, name, role) VALUES ('vip776@haemill.ms.kr', 'Haemill', 'APPROVED')`);
       await db.execute(`INSERT OR IGNORE INTO users (email, name, role) VALUES ('vip776@a4k.ai', 'A4K', 'APPROVED')`);
       
-      const res = await db.execute(`SELECT id FROM rooms WHERE name = '그룹챗1'`);
-      if (res.rows.length === 0) {
+      const res1 = await db.execute(`SELECT id FROM rooms WHERE name = '그룹챗1'`);
+      if (res1.rows.length === 0) {
         const roomRes = await db.execute(`INSERT INTO rooms (name, created_by) VALUES ('그룹챗1', 'vip7612@gmail.com') RETURNING id`);
         const roomId = roomRes.rows[0].id;
         await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip7612@gmail.com']);
         await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip776@haemill.ms.kr']);
+      }
+      
+      const res2 = await db.execute(`SELECT id FROM rooms WHERE name = '그룹챗2'`);
+      if (res2.rows.length === 0) {
+        const roomRes = await db.execute(`INSERT INTO rooms (name, created_by) VALUES ('그룹챗2', 'vip7612@gmail.com') RETURNING id`);
+        const roomId = roomRes.rows[0].id;
+        await db.execute(`INSERT OR IGNORE INTO room_members (room_id, user_email) VALUES (?, ?)`, [roomId, 'vip7612@gmail.com']);
       }
     } catch(e) { console.log('Seed skip:', e.message); }
 
@@ -115,14 +122,23 @@ async function initDb() {
 }
 initDb();
 
-// 기존 대화 이력 가져오기 (오직 오늘 세션만)
+// 기존 대화 이력 가져오기 (room_id가 있으면 해당 룸 전체, 없으면 개인의 오늘 세션)
 app.get('/api/chat', async (req, res) => {
   try {
+    const roomId = req.query.room_id || null;
     const sessionDate = getGlobalSessionDate();
-    const result = await db.execute({
-      sql: 'SELECT * FROM messages WHERE session_date = ? ORDER BY id ASC',
-      args: [sessionDate]
-    });
+    let result;
+    if (roomId) {
+      result = await db.execute({
+        sql: 'SELECT * FROM messages WHERE room_id = ? ORDER BY id ASC',
+        args: [roomId]
+      });
+    } else {
+      result = await db.execute({
+        sql: 'SELECT * FROM messages WHERE session_date = ? AND room_id IS NULL ORDER BY id ASC',
+        args: [sessionDate]
+      });
+    }
     res.json({ success: true, messages: result.rows });
   } catch (err) {
     console.error(err);
@@ -132,7 +148,7 @@ app.get('/api/chat', async (req, res) => {
 
 // 새로운 대화 전송 및 응답
 app.post('/api/chat', async (req, res) => {
-  const { message } = req.body;
+  const { message, room_id } = req.body;
   
   if (!message) {
     return res.status(400).json({ success: false, error: '메시지가 없습니다.' });
@@ -141,8 +157,8 @@ app.post('/api/chat', async (req, res) => {
   try {
     // 사용자 메시지 저장
     await db.execute({
-      sql: 'INSERT INTO messages (role, content, session_date) VALUES (?, ?, ?)',
-      args: ['user', message, getGlobalSessionDate()]
+      sql: 'INSERT INTO messages (role, content, session_date, room_id) VALUES (?, ?, ?, ?)',
+      args: ['user', message, getGlobalSessionDate(), room_id || null]
     });
 
     // 1. 외부 에이전트(다른 맥미니의 안티그래비티) 연동
@@ -151,7 +167,7 @@ app.post('/api/chat', async (req, res) => {
         await fetch(process.env.ANTIGRAVITY_WEBHOOK_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message })
+          body: JSON.stringify({ message, room_id })
         });
         // 전송에 성공하면 백엔드 로직 종료 (결과는 나중에 안티그래비티가 웹훅으로 회신)
         return res.json({ success: true, forwarded: true });
@@ -180,8 +196,8 @@ app.post('/api/chat', async (req, res) => {
     
     // AI 응답 저장
     await db.execute({
-      sql: 'INSERT INTO messages (role, content, session_date) VALUES (?, ?, ?)',
-      args: ['bot', botResponse, getGlobalSessionDate()]
+      sql: 'INSERT INTO messages (role, content, session_date, room_id) VALUES (?, ?, ?, ?)',
+      args: ['bot', botResponse, getGlobalSessionDate(), room_id || null]
     });
 
     res.json({ success: true, reply: botResponse });
@@ -193,14 +209,14 @@ app.post('/api/chat', async (req, res) => {
 
 // 외부 에이전트(안티그래비티)가 대시보드로 데이터를 쏘는 웹훅 (인바운드)
 app.post('/api/webhook/inbound', async (req, res) => {
-  const { role, content } = req.body;
+  const { role, content, room_id } = req.body;
   if (!content) return res.status(400).json({ success: false, error: 'Missing content' });
   
   try {
     const senderRole = role || 'bot'; // 기본적으로 봇 발화로 처리
     await db.execute({
-      sql: 'INSERT INTO messages (role, content, session_date) VALUES (?, ?, ?)',
-      args: [senderRole, content, getGlobalSessionDate()]
+      sql: 'INSERT INTO messages (role, content, session_date, room_id) VALUES (?, ?, ?, ?)',
+      args: [senderRole, content, getGlobalSessionDate(), room_id || null]
     });
     console.log(`[Webhook Inbound] ${senderRole}: ${content}`);
     res.json({ success: true, message: 'Saved successfully.' });

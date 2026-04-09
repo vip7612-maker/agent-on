@@ -11,6 +11,7 @@ let isWaitingForBot = false;
 let currentMsgCount = 0;
 let isViewingHistory = false;
 let selectedHarness = null; // 선택된 하네스 객체 {id, title, content}
+let currentRoomId = null; // 현재 선택된 그룹챗 ID (null이면 1:1 ONAi 채팅)
 
 // 모든 메인 뷰를 숨기고 지정한 뷰만 표시
 function showMainView(viewId) {
@@ -198,7 +199,8 @@ async function syncChats() {
   if (isViewingHistory) return; // 히스토리 화면이거나 과거 대화를 볼 때는 중단
   
   try {
-    const res = await fetch('/api/chat');
+    const url = currentRoomId ? `/api/chat?room_id=${currentRoomId}` : '/api/chat';
+    const res = await fetch(url);
     const data = await res.json();
     if (data.success && data.messages.length !== currentMsgCount) {
       currentMsgCount = data.messages.length;
@@ -332,7 +334,7 @@ async function handleSend() {
     await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: finalMessage })
+      body: JSON.stringify({ message: finalMessage, room_id: currentRoomId })
     });
     // POST 직후 즉각 1회 동기화 (Gemini 폴백이 작동했을 수 있으므로)
     syncChats();
@@ -474,6 +476,9 @@ if (navChat && navHistory && navBoard) {
     
     if (localStorage.getItem('agentOn_token')) {
        isViewingHistory = false;
+       currentRoomId = null;
+       document.querySelectorAll('.group-room-btn').forEach(b => b.classList.remove('active'));
+       
        chatView.style.display = 'flex';
        historyView.style.display = 'none';
        boardView.style.display = 'none';
@@ -482,6 +487,11 @@ if (navChat && navHistory && navBoard) {
        const lv = document.getElementById('landingView');
        if(lv) lv.style.display = 'none';
        currentMsgCount = -1; // 강제 새로고침
+       
+       // 타이틀 기본값 변경
+       const titleEl = document.querySelector('.welcome-title');
+       if(titleEl) titleEl.innerText = '무엇을 도와드릴까요?';
+       
        syncChats();
     } else {
        isViewingHistory = true;
@@ -750,10 +760,19 @@ async function fetchMyRooms(email) {
         `).join('');
         container.querySelectorAll('.group-room-btn').forEach(btn => {
           btn.addEventListener('click', () => {
+            currentRoomId = btn.getAttribute('data-id');
+            currentMsgCount = -1; // 강제 새로고침 유도
             showMainView('chatView');
-            // 'ON비서 채팅' 메뉴 활성화
-            const navChat = document.getElementById('navChat');
-            if(navChat) navChat.classList.add('active');
+            // 그룹챗 메뉴 활성화 (기존 활성화 클래스 제거)
+            container.querySelectorAll('.group-room-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('navChat').classList.remove('active');
+            btn.classList.add('active');
+            
+            // 환영 문구/타이틀 변경 (선택사항)
+            const titleEl = document.querySelector('.welcome-title');
+            if(titleEl) titleEl.innerText = btn.innerText + ' 채팅방에 오신 것을 환영합니다';
+            
+            syncChats();
           });
         });
       }

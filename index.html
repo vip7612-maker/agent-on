@@ -145,25 +145,38 @@
 
         <!-- 입력창 영역 -->
         <div class="input-container">
-          <div class="input-box">
-            <button class="icon-btn" id="harnessBtn" aria-label="하네스" style="position:relative;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 5L12 12L5 19M12 12L19 19" stroke="currentColor" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M15.5 8.5L15.76 4.77A3.25 3.25 0 1 1 19.23 8.24Z" fill="#ef4444" />
-              </svg>
-            </button>
-            <!-- 하네스 팝업 -->
-            <div id="harnessPopup" style="display:none; position:absolute; bottom:60px; left:12px; background:#1e1e1e; border:1px solid var(--border-color); border-radius:12px; min-width:240px; max-height:300px; overflow-y:auto; z-index:100; box-shadow:0 8px 24px rgba(0,0,0,0.6); padding:8px 0;">
-              <div style="padding:8px 16px; font-size:0.8rem; color:var(--text-muted); font-weight:600;">하네스 선택</div>
-              <div id="harnessListChat" style="display:flex; flex-direction:column;"></div>
+          <div class="input-box" style="display:flex; flex-direction:column; align-items:stretch; gap:12px; padding:16px;">
+            <!-- 상단: 입력창 -->
+            <div id="chatInput" contenteditable="true" data-placeholder="AiON agent에게 물어보세요..." translate="no" spellcheck="false" role="textbox" aria-multiline="true" style="min-height:50px; padding:0 4px; overflow-y:auto; line-height:1.5;"></div>
+            
+            <!-- 하단: 도구 버튼 -->
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <!-- 좌측 툴 -->
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button class="icon-btn" id="harnessBtn" aria-label="하네스" style="position:relative;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M5 5L12 12L5 19M12 12L19 19" stroke="currentColor" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M15.5 8.5L15.76 4.77A3.25 3.25 0 1 1 19.23 8.24Z" fill="#ef4444" />
+                  </svg>
+                </button>
+                <!-- 파일첨부 버튼 (그룹챗 전용, 기본 숨김) -->
+                <button class="icon-btn" id="attachBtn" aria-label="파일첨부" style="display:none;">
+                  <iconify-icon icon="lucide:paperclip"></iconify-icon>
+                </button>
+              </div>
+              
+              <!-- 하네스 팝업 (버튼 위쪽에 뜨도록) -->
+              <div id="harnessPopup" style="display:none; position:absolute; bottom:60px; left:20px; background:#1e1e1e; border:1px solid var(--border-color); border-radius:12px; min-width:240px; max-height:300px; overflow-y:auto; z-index:100; box-shadow:0 8px 24px rgba(0,0,0,0.6); padding:8px 0;">
+                <div style="padding:8px 16px; font-size:0.8rem; color:var(--text-muted); font-weight:600;">하네스 선택</div>
+                <div id="harnessListChat" style="display:flex; flex-direction:column;"></div>
+              </div>
+
+              <!-- 우측 툴 -->
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button class="icon-btn" id="micBtn" aria-label="음성"><iconify-icon icon="mdi:microphone"></iconify-icon></button>
+                <button class="icon-btn active" id="sendBtn" aria-label="전송"><iconify-icon icon="mdi:arrow-up-circle"></iconify-icon></button>
+              </div>
             </div>
-            <!-- 파일첨부 버튼 (그룹챗 전용, 기본 숨김) -->
-            <button class="icon-btn" id="attachBtn" aria-label="파일첨부" style="display:none;">
-              <iconify-icon icon="lucide:paperclip"></iconify-icon>
-            </button>
-            <div id="chatInput" contenteditable="true" data-placeholder="AiON agent에게 물어보세요..." translate="no" spellcheck="false" role="textbox" aria-multiline="true"></div>
-            <button class="icon-btn" id="micBtn" aria-label="음성"><iconify-icon icon="mdi:microphone"></iconify-icon></button>
-            <button class="icon-btn active" id="sendBtn" aria-label="전송"><iconify-icon icon="mdi:arrow-up-circle"></iconify-icon></button>
           </div>
           <div class="input-footer">
           </div>

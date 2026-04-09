@@ -675,6 +675,7 @@ async function submitVoiceMessage(audioDataUrl, sttText) {
 }
 // --- 음성 녹음 로직 종료 ---
 
+const micBtn = document.getElementById('micBtn');
 if(micBtn) micBtn.addEventListener('click', toggleMicrophone);
 
 sendBtn.addEventListener('click', handleSend);

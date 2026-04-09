@@ -413,7 +413,7 @@ async function syncChats() {
       });
 
       // 만약 아직 안티그래비티 등으로부터 답변을 대기 중이라면 로딩 인디케이터 유지
-      if (isWaitingForBot) {
+      if (!currentRoomId && isWaitingForBot) {
         const loadingDiv = document.createElement('div');
         loadingDiv.className = `message bot`;
         loadingDiv.id = 'loadingIndicator';
@@ -440,7 +440,10 @@ async function handleSend() {
   if (!text) return;
   
   inputEl.value = '';
-  isWaitingForBot = true;
+  // 봇 대기 상태 활성화 (1:1 AiON 채팅에서만)
+  if (!currentRoomId) {
+    isWaitingForBot = true;
+  }
 
   // 하네스가 선택되어 있으면 합성 (AiON 채팅에서만)
   let finalMessage = text;

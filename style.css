@@ -15,7 +15,7 @@
 html, body {
   margin: 0;
   padding: 0;
-  height: 100%;
+  height: 100dvh;
   font-family: 'Inter', sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-high);
@@ -24,7 +24,7 @@ html, body {
 
 .app-container {
   display: flex;
-  height: 100vh;
+  height: 100dvh;
 }
 
 /* 좌측 사이드바 */

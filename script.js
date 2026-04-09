@@ -189,7 +189,7 @@ function applyUserInfo(userInfo) {
     const attachBtn = document.getElementById('attachBtn');
     if(attachBtn) attachBtn.style.display = '';
     const chatInput = document.getElementById('chatInput');
-    if(chatInput) chatInput.placeholder = '메시지를 입력하세요.';
+    if(chatInput) chatInput.setAttribute('data-placeholder', '메시지를 입력하세요.');
   }
   
   const googleBtn = document.getElementById('googleLoginBtn');
@@ -432,10 +432,10 @@ setInterval(syncChats, 2000);
 
 // 메시지 전송 핸들러
 async function handleSend() {
-  const text = inputEl.value.trim();
+  const text = inputEl.innerText.trim();
   if (!text) return;
   
-  inputEl.value = '';
+  inputEl.innerText = '';
 
   // 하네스가 선택되어 있으면 합성 (AiON 채팅에서만)
   let finalMessage = text;
@@ -486,10 +486,18 @@ async function handleSend() {
 
 sendBtn.addEventListener('click', handleSend);
 inputEl.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
+  if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     handleSend();
   }
+});
+inputEl.addEventListener('paste', (e) => {
+  e.preventDefault();
+  const text = (e.originalEvent || e).clipboardData.getData('text/plain');
+  document.execCommand('insertText', false, text);
+});
+inputEl.addEventListener('focus', () => {
+  setTimeout(() => window.scrollTo(0, 0), 50);
 });
 
 if (menuToggle && sidebar) {
@@ -648,7 +656,7 @@ if (navChat && navHistory && navBoard) {
        if(harnessBtn) harnessBtn.style.display = '';
        const attachBtn = document.getElementById('attachBtn');
        if(attachBtn) attachBtn.style.display = 'none';
-       inputEl.placeholder = 'AiON agent에게 물어보세요...';
+       inputEl.setAttribute('data-placeholder', 'AiON agent에게 물어보세요...');
        
        syncChats();
     } else {

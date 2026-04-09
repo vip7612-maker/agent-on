@@ -20,6 +20,8 @@ html, body {
   background-color: var(--bg-primary);
   color: var(--text-high);
   overflow: hidden;
+  position: fixed;
+  width: 100%;
 }
 
 .app-container {
@@ -253,7 +255,8 @@ html, body {
   border-color: #666;
 }
 
-.input-box input {
+.input-box input,
+.input-box [contenteditable="true"] {
   flex: 1;
   background: transparent;
   border: none;
@@ -261,10 +264,21 @@ html, body {
   font-size: 1rem;
   outline: none;
   padding: 8px 0;
+  max-height: 120px;
+  overflow-y: auto;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .input-box input::placeholder {
   color: var(--text-muted);
+}
+
+.input-box [contenteditable="true"]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  pointer-events: none;
+  display: block;
 }
 
 .icon-btn {

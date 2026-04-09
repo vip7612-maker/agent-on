@@ -14,6 +14,15 @@ let currentRoomId = null; // 현재 선택된 그룹챗 ID (null이면 1:1 AiON 
 let isPopupMode = false; // 독립창 모드 여부
 let popupRoomName = '';
 
+function renderPlainText(text) {
+  if (!text) return '';
+  return text.split('\n').map(line => {
+    const span = document.createElement('span');
+    span.textContent = line;
+    return span.outerHTML;
+  }).join('<br/>');
+}
+
 // 초기 로드 시 파라미터 감지
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.has('room_id')) {
@@ -352,7 +361,7 @@ async function syncChats() {
         
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
-        contentDiv.textContent = msg.content;
+        contentDiv.innerHTML = renderPlainText(msg.content);
         
         if (currentRoomId) {
           contentDiv.style.lineHeight = '1.4';
@@ -447,7 +456,7 @@ async function handleSend() {
   userDiv.className = `message user`;
   const uContent = document.createElement('div');
   uContent.className = 'message-content';
-  uContent.textContent = finalMessage;
+  uContent.innerHTML = renderPlainText(finalMessage);
   if (currentRoomId) {
     uContent.style.lineHeight = '1.4';
     uContent.style.marginTop = '-2px';
@@ -634,7 +643,7 @@ async function loadHistoryList() {
             msgDiv.className = `message ${msg.role}`;
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            contentDiv.textContent = msg.content;
+            contentDiv.innerHTML = renderPlainText(msg.content);
             msgDiv.appendChild(contentDiv);
             messagesEl.appendChild(msgDiv);
           });
@@ -1267,7 +1276,6 @@ function renderDropdown(roomId, query, eligibleUsers, existingEmails) {
         loadAdminData();
       } else {
         alert('추가 실패');
-      }
       }
     });
   });

@@ -284,7 +284,7 @@ async function syncChats() {
           // 상대방 메시지: 아바타 + 이름 + 시간
           if (!isMe) {
             const headerRow = document.createElement('div');
-            headerRow.style.cssText = 'display:flex; align-items:center; gap:8px; margin-bottom:2px;';
+            headerRow.style.cssText = 'display:flex; align-items:center; gap:8px; margin-bottom:0px;';
             
             // 프로필 아바타
             const avatar = document.createElement('div');
@@ -319,7 +319,7 @@ async function syncChats() {
           } else {
             // 내 메시지: 이름 + 시간 표시 (우측 정렬)
             const myHeaderRow = document.createElement('div');
-            myHeaderRow.style.cssText = 'display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-bottom:2px;';
+            myHeaderRow.style.cssText = 'display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-bottom:0px;';
             
             // 이름
             const myNameSpan = document.createElement('span');
@@ -352,10 +352,11 @@ async function syncChats() {
         
         if (currentRoomId) {
           contentDiv.style.lineHeight = '1.4';
-          contentDiv.style.marginTop = '0px';
           if (msg.sender_email === getCurrentUserEmail()) {
+            contentDiv.style.marginTop = '-2px';
             contentDiv.style.paddingRight = '8px';
           } else {
+            contentDiv.style.marginTop = '-6px';
             contentDiv.style.paddingLeft = '36px'; // 로고(28px) + gap(8px)
           }
         }

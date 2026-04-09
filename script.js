@@ -10,6 +10,86 @@ const sidebar = document.querySelector('.sidebar');
 let isWaitingForBot = false;
 let currentMsgCount = 0;
 
+const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com'; // TODO: 구글 클라우드 콘솔의 OAuth 클라이언트 ID로 변경 필수
+
+// 구글 OAuth 2.0 로그인 (Implicit Flow)
+function oauthSignIn() {
+  const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
+  const form = document.createElement('form');
+  form.setAttribute('method', 'GET');
+  form.setAttribute('action', oauth2Endpoint);
+
+  const params = {
+    'client_id': GOOGLE_CLIENT_ID,
+    'redirect_uri': window.location.origin, // 예: https://agent-on.vercel.app
+    'response_type': 'token',
+    'scope': 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+    'include_granted_scopes': 'true',
+    'state': 'login'
+  };
+
+  for (const p in params) {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'hidden');
+    input.setAttribute('name', p);
+    input.setAttribute('value', params[p]);
+    form.appendChild(input);
+  }
+  document.body.appendChild(form);
+  form.submit();
+}
+
+// 구글 토큰 추출 및 사용자 정보 로드
+async function checkGoogleLogin() {
+  const fragmentString = location.hash.substring(1);
+  const params = {};
+  const regex = /([^&=]+)=([^&]*)/g;
+  let m;
+  while ((m = regex.exec(fragmentString))) {
+    params[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
+  }
+  
+  if (Object.keys(params).length > 0 && params['access_token']) {
+    // 1. URL 해시 정리 (주소창 깔끔하게)
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    try {
+      // 2. 구글에서 프로필 정보 가져오기
+      const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${params['access_token']}` }
+      });
+      const userInfo = await res.json();
+      
+      // 3. UI 업데이트
+      const googleBtn = document.getElementById('googleLoginBtn');
+      if (googleBtn) googleBtn.style.display = 'none';
+      
+      const userProfile = document.getElementById('userProfile');
+      if (userProfile) userProfile.style.display = 'flex';
+      
+      // 프로필 이미지 및 이름 세팅
+      if (userProfile) {
+        const avatarDiv = userProfile.querySelector('.avatar');
+        if (userInfo.picture) {
+          avatarDiv.style.background = 'transparent';
+          avatarDiv.innerHTML = `<img src="${userInfo.picture}" alt="profile" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+        } else {
+          avatarDiv.textContent = userInfo.given_name ? userInfo.given_name[0] : '이';
+        }
+        userProfile.querySelector('.user-name').textContent = userInfo.name || '이경진';
+        
+        // 동적 인사말 호칭도 업데이트
+        const greetingTitle = document.getElementById('welcomeTitle');
+        if (greetingTitle && greetingTitle.textContent.includes('교장님')) {
+          greetingTitle.textContent = greetingTitle.textContent.replace('교장님', userInfo.name + ' 교장님');
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch user info', err);
+    }
+  }
+}
+
 // 대화 내역 실시간 동기화 (폴링 기법)
 async function syncChats() {
   try {
@@ -154,6 +234,7 @@ function updateGreeting() {
 
 // 앱 실행 시 구동 로직
 window.addEventListener('DOMContentLoaded', () => {
+  checkGoogleLogin();
   updateGreeting();
   syncChats();
 
@@ -162,5 +243,10 @@ window.addEventListener('DOMContentLoaded', () => {
     sidebarToggleBtn.addEventListener('click', () => {
       sidebar.classList.toggle('collapsed');
     });
+  }
+
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  if (googleLoginBtn) {
+    googleLoginBtn.addEventListener('click', oauthSignIn);
   }
 });

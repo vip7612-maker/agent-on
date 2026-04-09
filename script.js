@@ -1057,11 +1057,14 @@ async function loadAdminData() {
   const email = getCurrentUserEmail();
   if(!email) return;
   
+  let allUsers = [];
+  
   // 1. 사용자 승인 관리,
   try {
     const userRes = await fetch('/api/admin/users', { headers: {'User-Email': email} });
     const userData = await userRes.json();
     if(userData.success) {
+      allUsers = userData.users;
       document.getElementById('adminUsersList').innerHTML = userData.users.map(u => {
         const roleColors = {'ADMIN': '#3b82f6', 'APPROVED': '#10b981', 'PENDING': '#f59e0b'};
         const roleLabels = {'ADMIN': '관리자', 'APPROVED': '승인됨', 'PENDING': '대기 중'};
@@ -1098,15 +1101,21 @@ async function loadAdminData() {
     const roomsEl = document.getElementById('adminRoomsList');
     if(!roomsEl) return;
     
+    // 추가 가능한 사용자 = APPROVED 또는 ADMIN
+    const eligibleUsers = allUsers.filter(u => u.role === 'APPROVED' || u.role === 'ADMIN');
+    
     if(roomData.success && roomData.rooms.length > 0) {
       roomsEl.innerHTML = roomData.rooms.map(room => {
         const roomMembers = roomData.members.filter(m => m.room_id === room.id);
-        const memberTags = roomMembers.map(m => 
-          `<div style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:16px; background:var(--bg-input); font-size:0.8rem; border:1px solid var(--border-color);">
-            <span>${m.user_email.split('@')[0]}</span>
+        const existingEmails = roomMembers.map(m => m.user_email);
+        const memberTags = roomMembers.map(m => {
+          const usr = allUsers.find(u => u.email === m.user_email);
+          const displayName = usr ? usr.name : m.user_email.split('@')[0];
+          return `<div style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:16px; background:var(--bg-input); font-size:0.8rem; border:1px solid var(--border-color);">
+            <span>${displayName}</span>
             <button onclick="event.stopPropagation(); window.removeMember(${room.id}, '${m.user_email}')" style="background:none; border:none; cursor:pointer; color:#ef4444; font-size:0.9rem; padding:0; line-height:1;" title="삭제">×</button>
-          </div>`
-        ).join('');
+          </div>`;
+        }).join('');
         
         return `<div style="padding:16px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-main);">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -1121,16 +1130,88 @@ async function loadAdminData() {
             <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:6px;">참여자 (${roomMembers.length}명)</div>
             <div style="display:flex; flex-wrap:wrap; gap:6px;">${memberTags || '<span style="font-size:0.85rem; color:var(--text-muted);">참여자가 없습니다</span>'}</div>
           </div>
-          <div style="display:flex; gap:6px; margin-top:8px;">
-            <input type="text" placeholder="이메일로 멤버 추가" id="invite_${room.id}" style="flex:1; padding:8px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); font-size:0.85rem;" />
-            <button onclick="window.inviteToRoom(${room.id})" style="padding:8px 14px; border-radius:6px; background:rgba(16,185,129,0.15); border:1px solid #10b981; color:#10b981; cursor:pointer; font-size:0.85rem; white-space:nowrap;">추가</button>
+          <div style="position:relative; margin-top:8px;">
+            <input type="text" placeholder="이름 또는 이메일로 검색하여 추가" id="invite_${room.id}" autocomplete="off" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); font-size:0.85rem; box-sizing:border-box;" />
+            <div id="inviteDropdown_${room.id}" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:180px; overflow-y:auto; background:var(--bg-sidebar); border:1px solid var(--border-color); border-radius:0 0 8px 8px; z-index:10;"></div>
           </div>
         </div>`;
       }).join('');
+      
+      // 각 방의 검색 입력에 이벤트 바인딩
+      roomData.rooms.forEach(room => {
+        const input = document.getElementById('invite_' + room.id);
+        const dropdown = document.getElementById('inviteDropdown_' + room.id);
+        if(!input || !dropdown) return;
+        
+        const roomMembers = roomData.members.filter(m => m.room_id === room.id);
+        const existingEmails = roomMembers.map(m => m.user_email);
+        
+        input.addEventListener('focus', () => renderDropdown(room.id, input.value, eligibleUsers, existingEmails));
+        input.addEventListener('input', () => renderDropdown(room.id, input.value, eligibleUsers, existingEmails));
+        
+        // 바깥 클릭 시 닫기
+        document.addEventListener('click', (e) => {
+          if(!input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+          }
+        });
+      });
     } else {
       roomsEl.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.9rem;">개설된 그룹챗이 없습니다.</div>';
     }
   } catch(e) { console.error(e); }
+}
+
+// 검색 드롭다운 렌더링
+function renderDropdown(roomId, query, eligibleUsers, existingEmails) {
+  const dropdown = document.getElementById('inviteDropdown_' + roomId);
+  if(!dropdown) return;
+  
+  const q = query.trim().toLowerCase();
+  const available = eligibleUsers.filter(u => 
+    !existingEmails.includes(u.email) && 
+    (u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+  );
+  
+  if(available.length === 0) {
+    dropdown.innerHTML = '<div style="padding:10px 12px; font-size:0.85rem; color:var(--text-muted);">추가할 수 있는 사용자가 없습니다</div>';
+    dropdown.style.display = 'block';
+    return;
+  }
+  
+  dropdown.innerHTML = available.map(u => 
+    `<div class="invite-option" data-email="${u.email}" data-room="${roomId}" style="padding:8px 12px; cursor:pointer; display:flex; align-items:center; gap:10px; transition:background 0.15s;"
+         onmouseover="this.style.background='var(--bg-input)'" onmouseout="this.style.background='transparent'">
+      <div style="width:28px; height:28px; border-radius:50%; background:rgba(59,130,246,0.15); display:flex; align-items:center; justify-content:center; color:#3b82f6; font-size:0.75rem; font-weight:600; flex-shrink:0;">${(u.name || '?').charAt(0)}</div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:0.85rem; font-weight:500;">${u.name}</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis;">${u.email}</div>
+      </div>
+      <iconify-icon icon="lucide:user-plus" style="color:#10b981; font-size:1rem; flex-shrink:0;"></iconify-icon>
+    </div>`
+  ).join('');
+  dropdown.style.display = 'block';
+  
+  // 클릭 이벤트
+  dropdown.querySelectorAll('.invite-option').forEach(opt => {
+    opt.addEventListener('click', async () => {
+      const targetEmail = opt.dataset.email;
+      const rId = opt.dataset.room;
+      const adminEmail = getCurrentUserEmail();
+      opt.innerHTML = '<div style="padding:4px 12px; font-size:0.85rem; color:var(--text-muted);">추가 중...</div>';
+      const res = await fetch('/api/admin/rooms/invite', {
+        method: 'POST',
+        headers: {"Content-Type": "application/json", "User-Email": adminEmail},
+        body: JSON.stringify({ roomId: parseInt(rId), targetEmail })
+      });
+      const data = await res.json();
+      if(data.success) {
+        loadAdminData();
+      } else {
+        alert('추가 실패');
+      }
+    });
+  });
 }
 
 // 사용자 승인/해제
@@ -1186,24 +1267,6 @@ window.deleteRoom = async function(roomId) {
 }
 
 // 멤버 추가
-window.inviteToRoom = async function(roomId) {
-  const input = document.getElementById('invite_' + roomId);
-  const targetEmail = input.value.trim();
-  if(!targetEmail) return;
-  const email = getCurrentUserEmail();
-  const res = await fetch('/api/admin/rooms/invite', {
-    method: 'POST',
-    headers: {"Content-Type": "application/json", "User-Email": email},
-    body: JSON.stringify({ roomId, targetEmail })
-  });
-  const data = await res.json();
-  if(data.success) {
-    input.value = '';
-    loadAdminData();
-  } else {
-    alert('추가 실패: ' + (data.error || '알 수 없는 에러'));
-  }
-}
 
 // 멤버 제거
 window.removeMember = async function(roomId, targetEmail) {

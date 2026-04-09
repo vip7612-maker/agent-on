@@ -1161,6 +1161,39 @@ async function fetchMyRooms(email) {
   } catch(e) { console.error('Rooms fetch failed', e); }
 }
 
+window.adminAddUser = async function() {
+  const targetEmail = document.getElementById('newAdminUserEmail').value.trim();
+  const targetName = document.getElementById('newAdminUserName').value.trim();
+  
+  if (!targetEmail || !targetName) {
+    alert('이메일과 이름을 모두 입력해주세요.');
+    return;
+  }
+  
+  try {
+    const res = await fetch('/api/admin/users/add', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Email': getCurrentUserEmail()
+      },
+      body: JSON.stringify({ targetEmail, targetName })
+    });
+    const data = await res.json();
+    if(data.success) {
+      document.getElementById('newAdminUserEmail').value = '';
+      document.getElementById('newAdminUserName').value = '';
+      alert('사용자가 성공적으로 추가되었습니다.');
+      loadAdminData();
+    } else {
+      alert('추가 실패: ' + (data.error || '알 수 없는 오류'));
+    }
+  } catch(e) {
+    console.error(e);
+    alert('추가 중 오류 발생');
+  }
+};
+
 async function loadAdminData() {
   const email = getCurrentUserEmail();
   if(!email) return;

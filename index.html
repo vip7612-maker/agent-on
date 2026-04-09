@@ -350,8 +350,21 @@
               <h2 style="font-weight:600; font-size:1.3rem; margin-bottom:4px; display:flex; align-items:center; gap:8px;">
                 <iconify-icon icon="lucide:users" style="color:#10b981;"></iconify-icon> 사용자 관리
               </h2>
-              <span style="color:var(--text-muted); font-size:0.85rem;">가입한 사용자의 승인 상태를 관리합니다.</span>
+              <span style="color:var(--text-muted); font-size:0.85rem;">가입한 사용자의 승인 상태를 관리하거나 사용자를 직접 추가합니다.</span>
             </div>
+            
+            <!-- 관리자 수동 추가 폼 -->
+            <div style="margin-bottom:20px; padding:16px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-sidebar);">
+              <div style="font-weight:500; margin-bottom:10px; font-size:0.9rem; display:flex; align-items:center; gap:6px;">
+                <iconify-icon icon="lucide:user-plus" style="color:#10b981;"></iconify-icon> 사용자 직접 추가
+              </div>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <input type="email" id="newAdminUserEmail" placeholder="이메일 입력 (예: test@test.com)" style="flex:1; min-width:200px; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); font-size:0.9rem;" />
+                <input type="text" id="newAdminUserName" placeholder="이름 입력 (예: 홍길동)" style="width:140px; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); font-size:0.9rem;" />
+                <button onclick="adminAddUser()" class="primary-btn" style="padding:10px 16px; font-size:0.9rem; white-space:nowrap;">추가</button>
+              </div>
+            </div>
+
             <div id="adminUsersList" style="display:flex; flex-direction:column; gap:8px;"></div>
           </div>
           

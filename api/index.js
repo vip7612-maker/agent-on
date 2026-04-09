@@ -478,6 +478,31 @@ app.delete('/api/admin/rooms/:id', async (req, res) => {
   }
 });
 
+app.post('/api/admin/users/add', async (req, res) => {
+  const email = req.headers['user-email'];
+  const { targetEmail, targetName } = req.body;
+  if (!targetEmail || !targetName) return res.status(400).json({ error: 'Missing required fields' });
+  
+  try {
+    const caller = await db.execute({ sql: 'SELECT role FROM users WHERE email=?', args: [email] });
+    if (!caller.rows.length || caller.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
+    
+    const existing = await db.execute({ sql: 'SELECT 1 FROM users WHERE email=?', args: [targetEmail] });
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: '이미 등록된 사용자입니다.' });
+    }
+    
+    await db.execute({
+      sql: 'INSERT INTO users (email, name, role) VALUES (?, ?, ?)',
+      args: [targetEmail, targetName, 'USER']
+    });
+    
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // 어드민용: 회원 승인
 app.post('/api/admin/users/approve', async (req, res) => {
   const email = req.headers['user-email'];

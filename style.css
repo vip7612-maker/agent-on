@@ -450,7 +450,8 @@ html, body {
   justify-content: center;
 }
 
-.sidebar.collapsed .user-profile-icons {
+.sidebar.collapsed .user-profile-icons,
+.sidebar.collapsed .user-info {
   display: none !important;
 }
 

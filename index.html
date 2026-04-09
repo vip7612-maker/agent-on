@@ -514,9 +514,10 @@
 
       if (!params['access_token']) return; // 토큰이 없으면 종료
 
-      // 토큰 저장 & URL 해시 제거
+      // 토큰 저장 & 이전 사용자 정보 즉시 폐기 (계정 전환 보호)
       var token = params['access_token'];
       localStorage.setItem('agentOn_token', token);
+      localStorage.removeItem('agentOn_user');
       window.history.replaceState({}, document.title, window.location.pathname);
 
       // 구글 API로 유저 정보 가져오기
@@ -589,6 +590,6 @@
       } catch(e) { console.error('Inline auto-login failed', e); }
     })();
   </script>
-  <script src="script.js?v=5.5"></script>
+  <script src="script.js?v=6.0"></script>
 </body>
 </html>

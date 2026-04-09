@@ -13,6 +13,7 @@ let selectedHarness = null; // 선택된 하네스 객체 {id, title, content}
 let currentRoomId = null; // 현재 선택된 그룹챗 ID (null이면 1:1 AiON 채팅)
 let isPopupMode = false; // 독립창 모드 여부
 let popupRoomName = '';
+let lastSyncedUserEmail = ''; // 마지막으로 동기화한 사용자 이메일 (계정 전환 감지용)
 
 function renderPlainText(text) {
   if (!text) return '';
@@ -117,6 +118,9 @@ async function checkGoogleLogin() {
   if (Object.keys(params).length > 0 && params['access_token']) {
     savedToken = params['access_token'];
     localStorage.setItem('agentOn_token', savedToken);
+    // 새 토큰 발급 시 이전 사용자 정보 즉시 폐기 (계정 전환 보호)
+    localStorage.removeItem('agentOn_user');
+    savedUser = null;
     window.history.replaceState({}, document.title, window.location.pathname);
   }
   
@@ -136,8 +140,18 @@ async function checkGoogleLogin() {
       applyUserInfo(userInfo);
     } catch (err) {
       console.error('Failed to fetch user info', err);
-      if (savedUser) applyUserInfo(savedUser);
-      else showLandingPage();
+      // 중요: 네트워크 오류 시 이전(다른) 계정 정보로 폴백하지 않음
+      // localStorage에 저장된 최신 사용자 정보만 사용
+      const freshUserStr = localStorage.getItem('agentOn_user');
+      if (freshUserStr) {
+        try {
+          applyUserInfo(JSON.parse(freshUserStr));
+        } catch(e) {
+          showLandingPage();
+        }
+      } else {
+        showLandingPage();
+      }
     }
   } else {
     showLandingPage();
@@ -313,10 +327,19 @@ async function syncChats() {
   if (isViewingHistory) return; // 히스토리 화면이거나 과거 대화를 볼 때는 중단
   
   try {
+    const currentEmail = getCurrentUserEmail();
     const url = currentRoomId ? `/api/chat?room_id=${currentRoomId}` : '/api/chat';
-    const res = await fetch(url, { headers: { 'User-Email': getCurrentUserEmail() } });
+    const res = await fetch(url, { headers: { 'User-Email': currentEmail } });
     const data = await res.json();
-    if (data.success && data.messages.length !== currentMsgCount) {
+    
+    // 계정 전환 감지: 유저가 바뀌면 무조건 화면 초기화
+    const userChanged = (currentEmail !== lastSyncedUserEmail);
+    if (userChanged) {
+      lastSyncedUserEmail = currentEmail;
+      currentMsgCount = -1; // 강제 리렌더링
+    }
+    
+    if (data.success && (data.messages.length !== currentMsgCount || userChanged)) {
       currentMsgCount = data.messages.length;
       
       // 기존 메시지들 비우기

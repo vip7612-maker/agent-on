@@ -744,10 +744,18 @@ async function fetchMyRooms(email) {
       const container = document.getElementById('groupRoomsList');
       if(container) {
         container.innerHTML = data.rooms.map(r => `
-          <div class="nav-item group-room-btn" data-id="${r.id}" style="padding: 10px 16px;">
+          <div class="nav-item group-room-btn" data-id="${r.id}">
             <iconify-icon icon="lucide:hash"></iconify-icon> <span class="nav-label">${r.name}</span>
           </div>
         `).join('');
+        container.querySelectorAll('.group-room-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            showMainView('chatView');
+            // 'ON비서 채팅' 메뉴 활성화
+            const navChat = document.getElementById('navChat');
+            if(navChat) navChat.classList.add('active');
+          });
+        });
       }
     }
   } catch(e) { console.error('Rooms fetch failed', e); }

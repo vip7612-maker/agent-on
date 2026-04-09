@@ -253,8 +253,16 @@ async function syncChats() {
              } catch(e) { boardBtn.innerHTML = og; }
           };
           
+          const shareBtn = document.createElement('button');
+          shareBtn.className = 'action-btn share-btn';
+          shareBtn.innerHTML = '<iconify-icon icon="lucide:share-2"></iconify-icon>';
+          shareBtn.onclick = (e) => {
+             window.showSharePopup(e.currentTarget, msg.content);
+          };
+          
           actionRow.appendChild(copyBtn);
           actionRow.appendChild(boardBtn);
+          actionRow.appendChild(shareBtn);
           msgDiv.appendChild(actionRow);
           isWaitingForBot = false;
         }
@@ -990,32 +998,81 @@ function initHarnessGalleryBtn() {
   var btn = document.getElementById('harnessGalleryBtn');
   if(!btn) return;
   btn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    var gv = document.getElementById('harnessGalleryView');
-    var cv = document.getElementById('chatView');
-    var hv = document.getElementById('historyView');
-    var bv = document.getElementById('boardView');
-    var lv = document.getElementById('landingView');
-    if(cv) cv.style.display = 'none';
-    if(hv) hv.style.display = 'none';
-    if(bv) bv.style.display = 'none';
-    if(lv) lv.style.display = 'none';
-    var nc = document.getElementById('navChat');
-    var nh = document.getElementById('navHistory');
-    var nb = document.getElementById('navBoard');
-    if(nc) nc.classList.remove('active');
-    if(nh) nh.classList.remove('active');
-    if(nb) nb.classList.remove('active');
-    if(gv) gv.style.display = 'flex';
-    var addBtn = document.getElementById('addHarnessBtn');
-    if(addBtn && window.currentUserRole === 'ADMIN') {
-      addBtn.style.display = 'block';
-      addBtn.onclick = function() { document.getElementById('harnessCreateForm').style.display = 'block'; };
-    }
-    isViewingHistory = true;
+    e.preventDefault();
+    showMainView('harnessGalleryView');
     loadHarnessGallery();
   });
 }
+
+// 그룹챗 공유 팝업 로직
+window.showSharePopup = function(targetEl, content) {
+  const popup = document.getElementById('sharePopup');
+  const roomsList = document.getElementById('shareRoomsList');
+  if(!popup || !roomsList) return;
+
+  // 위치 설정 (클릭한 버튼 옆)
+  const rect = targetEl.getBoundingClientRect();
+  popup.style.top = (rect.top - 10) + 'px';
+  popup.style.left = (rect.right + 10) + 'px';
+  popup.style.display = 'flex';
+
+  // 방 목록 불러오기 (fetchMyRooms 로직 재사용하거나 별도 fetch)
+  const userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  const email = JSON.parse(userInfoStr).email;
+
+  fetch('/api/rooms', { headers: {'User-Email': email} })
+    .then(res => res.json())
+    .then(data => {
+      if(data.success && data.rooms) {
+        roomsList.innerHTML = data.rooms.map(r => `
+          <div class="share-room-item" data-id="${r.id}" style="padding:8px 12px; border-radius:6px; cursor:pointer; font-size:0.9rem; transition:background 0.2s; display:flex; align-items:center; gap:8px;">
+            <iconify-icon icon="lucide:hash" style="color:#8b5cf6;"></iconify-icon> ${r.name}
+          </div>
+        `).join('');
+
+        roomsList.querySelectorAll('.share-room-item').forEach(item => {
+          item.addEventListener('mouseenter', () => item.style.background = 'rgba(255,255,255,0.05)');
+          item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+          item.addEventListener('click', async () => {
+            const roomId = item.getAttribute('data-id');
+            const roomName = item.innerText.trim();
+            item.innerHTML = '<iconify-icon icon="lucide:loader-2" class="spin"></iconify-icon> 전달 중...';
+            
+            try {
+              const res = await fetch('/api/chat/forward', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, room_id: roomId })
+              });
+              const d = await res.json();
+              if(d.success) {
+                item.innerHTML = '<iconify-icon icon="lucide:check" style="color:#10b981;"></iconify-icon> 전달 완료!';
+                setTimeout(() => {
+                  popup.style.display = 'none';
+                }, 1000);
+              } else {
+                item.innerHTML = '실패';
+              }
+            } catch(e) {
+              item.innerHTML = '오류';
+            }
+          });
+        });
+      }
+    });
+
+  // 바깥 클릭 시 닫기
+  const closePopup = (e) => {
+    if(!popup.contains(e.target) && !targetEl.contains(e.target)) {
+      popup.style.display = 'none';
+      document.removeEventListener('click', closePopup);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closePopup), 10);
+};
+
+
 
 window.toggleHarnessVisibility = async function(id) {
   var userInfoStr = localStorage.getItem('agentOn_user');

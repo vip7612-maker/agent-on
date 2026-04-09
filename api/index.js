@@ -226,6 +226,23 @@ app.post('/api/webhook/inbound', async (req, res) => {
   }
 });
 
+// 그룹챗으로 메시지 전달
+app.post('/api/chat/forward', async (req, res) => {
+  const { content, room_id } = req.body;
+  if (!content || !room_id) return res.status(400).json({ success: false, error: '내용과 대상 방 ID가 필요합니다.' });
+  
+  try {
+    await db.execute({
+      sql: 'INSERT INTO messages (role, content, session_date, room_id) VALUES (?, ?, ?, ?)',
+      args: ['bot', content, getGlobalSessionDate(), room_id]
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: '메시지 전달 실패' });
+  }
+});
+
 // 과거 세션 리스트 불러오기 (History)
 app.get('/api/history', async (req, res) => {
   try {

@@ -12,6 +12,20 @@ let currentMsgCount = 0;
 let isViewingHistory = false;
 let selectedHarness = null; // 선택된 하네스 객체 {id, title, content}
 let currentRoomId = null; // 현재 선택된 그룹챗 ID (null이면 1:1 ONAi 채팅)
+let isPopupMode = false; // 독립창 모드 여부
+let popupRoomName = '';
+
+// 초기 로드 시 파라미터 감지
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has('room_id')) {
+  currentRoomId = urlParams.get('room_id');
+  isPopupMode = true;
+  document.body.classList.add('popup-mode');
+  if (urlParams.has('room_name')) {
+    popupRoomName = urlParams.get('room_name');
+    document.title = popupRoomName; // 창 제목 변경
+  }
+}
 
 // 모든 메인 뷰를 숨기고 지정한 뷰만 표시
 function showMainView(viewId) {
@@ -162,6 +176,13 @@ function applyUserInfo(userInfo) {
   const cv = document.getElementById('chatView');
   if(cv) cv.style.display = 'flex';
   
+  if (isPopupMode) {
+    const mainSidebar = document.querySelector('.sidebar');
+    if(mainSidebar) mainSidebar.style.display = 'none';
+    const mobileHeader = document.querySelector('.mobile-header');
+    if(mobileHeader) mobileHeader.style.display = 'none';
+  }
+  
   const googleBtn = document.getElementById('googleLoginBtn');
   if (googleBtn) googleBtn.style.display = 'none';
   
@@ -183,6 +204,14 @@ function applyUserInfo(userInfo) {
       if (menuEmail) menuEmail.textContent = userInfo.email;
     }
     
+    // 팝업 모드일 때는 환영 문구를 방 이름으로 대체
+    if (isPopupMode && popupRoomName) {
+      const subTitleEl = document.querySelector('.welcome-subtitle');
+      if(subTitleEl) subTitleEl.innerText = popupRoomName + ' 채팅방에 오신 것을 환영합니다';
+      const chatRoomTitle = document.getElementById('chatRoomTitle');
+      if(chatRoomTitle) chatRoomTitle.innerText = popupRoomName;
+    }
+
     const greetingTitle = document.getElementById('welcomeTitle');
     if (greetingTitle && greetingTitle.textContent.includes('교장님')) {
       greetingTitle.textContent = greetingTitle.textContent.replace('교장님', userInfo.name + ' 교장님');
@@ -801,24 +830,14 @@ async function fetchMyRooms(email) {
         `).join('');
         container.querySelectorAll('.group-room-btn').forEach(btn => {
           btn.addEventListener('click', () => {
-            currentRoomId = btn.getAttribute('data-id');
-            currentMsgCount = -1; // 강제 새로고침 유도
-            showMainView('chatView');
-            // 그룹챗 메뉴 활성화 (기존 활성화 클래스 제거)
-            container.querySelectorAll('.group-room-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('navChat').classList.remove('active');
-            btn.classList.add('active');
-            
-            // 환영 문구 변경
-            const subTitleEl = document.querySelector('.welcome-subtitle');
-            if(subTitleEl) subTitleEl.innerText = btn.innerText.trim() + ' 채팅방에 오신 것을 환영합니다';
-            
-            const chatRoomTitle = document.getElementById('chatRoomTitle');
-            if(chatRoomTitle) chatRoomTitle.innerText = btn.innerText.trim();
-            const chatRoomHeader = document.getElementById('chatRoomHeader');
-            if(chatRoomHeader) chatRoomHeader.style.display = 'none'; // syncChats에서 메시지 있으면 보여줌
-            
-            syncChats();
+            // 새 창 팝업 띄우기 방식 적용 (독립창 분리)
+            const rId = btn.getAttribute('data-id');
+            const rName = btn.innerText.trim();
+            const w = 500;
+            const h = 700;
+            const left = (screen.width/2) - (w/2);
+            const top = (screen.height/2) - (h/2);
+            window.open(window.location.origin + '?room_id=' + rId + '&room_name=' + encodeURIComponent(rName), '_blank', `width=${w},height=${h},top=${top},left=${left}`);
           });
         });
       }

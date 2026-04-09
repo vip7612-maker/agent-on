@@ -39,7 +39,7 @@
         </div>
       </div>
       <div class="sidebar-footer" style="position: relative;">
-        <button class="google-btn" id="googleLoginBtn">
+        <button class="google-btn" id="googleLoginBtn" onclick="oauthSignIn()">
           <iconify-icon icon="logos:google-icon"></iconify-icon> <span class="nav-label">구글로 로그인</span>
         </button>
         <div class="user-profile" id="userProfile" style="display: none; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
@@ -117,7 +117,7 @@
          <p id="landingDesc" style="color: var(--text-muted); font-size: 1.05rem; line-height: 1.6; max-width: 500px; margin-bottom: 40px; word-break: keep-all;">
            단순한 질의응답을 뛰어넘어, 명령만 내리면 백엔드에서 당신의 로컬 환경과 연동되어 <strong>실질적인 업무 시퀀스</strong>를 모조리 수행하는 업계 최고 수준의 극강의 전속 비서입니다.
          </p>
-         <button class="google-btn" onclick="document.getElementById('googleLoginBtn').click()" style="max-width: 280px; background: var(--text-high); color: var(--bg-primary); padding: 14px 24px; font-size: 1.05rem; box-shadow: 0 4px 14px rgba(255,255,255,0.1);">
+         <button class="google-btn" onclick="oauthSignIn()" style="max-width: 280px; background: var(--text-high); color: var(--bg-primary); padding: 14px 24px; font-size: 1.05rem; box-shadow: 0 4px 14px rgba(255,255,255,0.1);">
            <iconify-icon icon="logos:google-icon"></iconify-icon> 구글로 계속하기
          </button>
       </div>

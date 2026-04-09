@@ -274,7 +274,8 @@ async function handleSend() {
   // 하네스가 선택되어 있으면 합성
   let finalMessage = text;
   if (selectedHarness) {
-    finalMessage = `[하네스: ${selectedHarness.title}]\n${selectedHarness.content}\n\n---\n사용자 메시지: ${text}`;
+    const lines = selectedHarness.content.split('\n').filter(l => l.trim()).map(l => '- ' + l.trim()).join('\n');
+    finalMessage = `${text}\n\n[하네스:${selectedHarness.title}]\n${lines}`;
     selectedHarness = null;
     const indicator = document.getElementById('harnessIndicator');
     if(indicator) indicator.remove();
@@ -812,10 +813,7 @@ function initHarnessPopup() {
           <div class="harness-item" data-id="${h.id}" style="padding:10px 16px; cursor:pointer; display:flex; align-items:center; gap:8px; transition:background 0.15s;" 
                onmouseover="this.style.background='var(--bg-input)'" onmouseout="this.style.background='transparent'">
             <iconify-icon icon="lucide:zap" style="color:#f59e0b; flex-shrink:0;"></iconify-icon>
-            <div>
-              <div style="font-weight:500; font-size:0.9rem;">${h.title}</div>
-              <div style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${h.content}</div>
-            </div>
+            <span style="font-weight:500; font-size:0.9rem;">${h.title}</span>
           </div>
         `).join('');
         // 클릭 이벤트 바인딩
@@ -903,7 +901,7 @@ async function loadHarnessGallery() {
       grid.innerHTML = data.harnesses.map(function(h) {
         var color = colors[h.id % colors.length];
         var badge = isAdmin ? '<span style="position:absolute;top:8px;right:8px;font-size:0.7rem;padding:2px 6px;border-radius:4px;background:'+(h.is_visible?'rgba(16,185,129,0.2)':'rgba(239,68,68,0.2)')+';color:'+(h.is_visible?'#10b981':'#ef4444')+';">'+(h.is_visible?'노출':'숨김')+'</span>' : '';
-        var btns = isAdmin ? '<div style="display:flex;gap:6px;margin-top:12px;border-top:1px solid var(--border-color);padding-top:10px;"><button onclick="event.stopPropagation();window.toggleHarnessVisibility('+h.id+')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:var(--text-muted);cursor:pointer;font-size:0.8rem;">'+(h.is_visible?'숨기기':'노출')+'</button><button onclick="event.stopPropagation();window.deleteHarness('+h.id+')" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#ef4444;cursor:pointer;font-size:0.8rem;">삭제</button></div>' : '';
+        var btns = isAdmin ? '<div style="display:flex;gap:6px;margin-top:12px;border-top:1px solid var(--border-color);padding-top:10px;"><button onclick="event.stopPropagation();window.openHarnessEdit('+h.id+')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:#f59e0b;cursor:pointer;font-size:0.8rem;">수정</button><button onclick="event.stopPropagation();window.toggleHarnessVisibility('+h.id+')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:var(--text-muted);cursor:pointer;font-size:0.8rem;">'+(h.is_visible?'숨기기':'노출')+'</button><button onclick="event.stopPropagation();window.deleteHarness('+h.id+')" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#ef4444;cursor:pointer;font-size:0.8rem;">삭제</button></div>' : '';
         return '<div class="harness-card" data-id="'+h.id+'" data-visible="'+h.is_visible+'" style="position:relative;padding:20px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-sidebar);cursor:pointer;transition:all 0.2s;overflow:hidden;">'+badge+'<div style="width:48px;height:48px;border-radius:12px;background:'+color+'18;display:flex;align-items:center;justify-content:center;margin-bottom:14px;"><iconify-icon icon="lucide:zap" style="font-size:1.4rem;color:'+color+';"></iconify-icon></div><div style="font-weight:600;font-size:1rem;margin-bottom:6px;">'+h.title+'</div><div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">'+h.content+'</div>'+btns+'</div>';
       }).join('');
       grid.querySelectorAll('.harness-card').forEach(function(card) {
@@ -980,6 +978,38 @@ window.deleteHarness = async function(id) {
     method: 'DELETE',
     headers: {'User-Email': email}
   });
+  loadHarnessGallery();
+}
+
+// 하네스 수정 모달 열기
+window.openHarnessEdit = async function(id) {
+  var userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  var email = JSON.parse(userInfoStr).email;
+  var res = await fetch('/api/admin/harnesses', { headers: {'User-Email': email} });
+  var data = await res.json();
+  var h = data.harnesses.find(function(x){return x.id === id;});
+  if(!h) return;
+  document.getElementById('editHarnessId').value = h.id;
+  document.getElementById('editHarnessTitle').value = h.title;
+  document.getElementById('editHarnessContent').value = h.content;
+  document.getElementById('harnessEditModal').style.display = 'flex';
+}
+
+window.saveHarnessEdit = async function() {
+  var userInfoStr = localStorage.getItem('agentOn_user');
+  if(!userInfoStr) return;
+  var email = JSON.parse(userInfoStr).email;
+  var id = document.getElementById('editHarnessId').value;
+  var title = document.getElementById('editHarnessTitle').value.trim();
+  var content = document.getElementById('editHarnessContent').value.trim();
+  if(!title || !content) return alert('제목과 내용을 모두 입력해주세요.');
+  await fetch('/api/admin/harnesses/' + id, {
+    method: 'PUT',
+    headers: {"Content-Type": "application/json", "User-Email": email},
+    body: JSON.stringify({ title: title, content: content, is_visible: 1 })
+  });
+  document.getElementById('harnessEditModal').style.display = 'none';
   loadHarnessGallery();
 }
 

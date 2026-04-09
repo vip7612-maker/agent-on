@@ -23,7 +23,6 @@
           <span class="logo-text">Agent ONAi</span>
         </div>
         <div class="header-actions">
-          <button class="icon-btn" aria-label="새 대화"><iconify-icon icon="mdi:square-edit-outline"></iconify-icon></button>
           <button class="icon-btn" id="sidebarToggleBtn" aria-label="사이드바 토글"><iconify-icon icon="lucide:panel-left"></iconify-icon></button>
         </div>
       </div>
@@ -103,16 +102,15 @@
     </aside>
 
     <main class="main-content">
-      <header class="mobile-header">
+      <header class="mobile-header" style="justify-content: space-between; padding-right: 16px;">
         <button class="icon-btn menu-toggle"><iconify-icon icon="mdi:menu"></iconify-icon></button>
-        <div class="logo" id="mobileLogoBtn" style="cursor: pointer; display: flex; align-items: center;">
+        <div class="logo" id="mobileLogoBtn" style="cursor: pointer; display: flex; align-items: center; margin-right: auto;">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 6"/>
             <path d="M12 6L13.5 10.5L18 12L13.5 13.5L12 18L10.5 13.5L6 12L10.5 10.5L12 6Z" fill="currentColor"/>
           </svg>
           <span class="logo-text">Agent ONAi</span>
         </div>
-        <button class="icon-btn"><iconify-icon icon="mdi:square-edit-outline"></iconify-icon></button>
       </header>
 
       <div class="chat-container" id="chatView">

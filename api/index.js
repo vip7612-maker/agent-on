@@ -11,12 +11,9 @@ dotenv.config();
 // Gemini API 클라이언트 설정
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'DUMMY_KEY' });
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
 
 // Turso DB 클라이언트 설정
 const db = createClient({
@@ -100,6 +97,10 @@ app.post('/api/chat', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`[서버] http://localhost:${PORT} 에서 실행 중...`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`[서버] http://localhost:${PORT} 에서 실행 중...`);
+  });
+}
+
+export default app;

@@ -44,6 +44,7 @@
             <div class="avatar" style="width: 36px; height: 36px; border-radius: 50%; background: var(--bg-input); display:flex; align-items:center; justify-content:center; color:var(--text-high); overflow:hidden;"></div>
             <div class="user-info" style="display: flex; flex-direction: column;">
               <span class="user-name" style="font-weight: 500; font-size: 0.95rem;">사용자</span>
+              <span id="userEmailDisplay" style="font-size: 0.75rem; color: var(--text-muted); margin-top:2px;"></span>
             </div>
           </div>
           <div class="user-profile-icons" style="display: flex; align-items: center; gap: 6px; color: var(--text-muted);">
@@ -154,7 +155,7 @@
             <button class="icon-btn" id="attachBtn" aria-label="파일첨부" style="display:none;">
               <iconify-icon icon="lucide:paperclip"></iconify-icon>
             </button>
-            <input type="text" id="chatInput" placeholder="AiON agent에게 물어보세요..." autocomplete="off" />
+            <input type="text" id="chatInput" placeholder="AiON agent에게 물어보세요..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" />
             <button class="icon-btn" id="micBtn" aria-label="음성"><iconify-icon icon="mdi:microphone"></iconify-icon></button>
             <button class="icon-btn active" id="sendBtn" aria-label="전송"><iconify-icon icon="mdi:arrow-up-circle"></iconify-icon></button>
           </div>

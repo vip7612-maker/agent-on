@@ -198,6 +198,8 @@ function applyUserInfo(userInfo) {
       avatarDiv.textContent = userInfo.given_name ? userInfo.given_name[0] : '이';
     }
     userProfile.querySelector('.user-name').textContent = userInfo.name || '이경진';
+    const uemail = document.getElementById('userEmailDisplay');
+    if(uemail) uemail.textContent = userInfo.email || '';
     
     if (userInfo.email) {
       const menuEmail = document.getElementById('menuEmail');
@@ -282,7 +284,7 @@ async function syncChats() {
           // 상대방 메시지: 아바타 + 이름 + 시간
           if (!isMe) {
             const headerRow = document.createElement('div');
-            headerRow.style.cssText = 'display:flex; align-items:center; gap:8px; margin-bottom:6px;';
+            headerRow.style.cssText = 'display:flex; align-items:center; gap:8px; margin-bottom:2px;';
             
             // 프로필 아바타
             const avatar = document.createElement('div');
@@ -317,7 +319,7 @@ async function syncChats() {
           } else {
             // 내 메시지: 이름 + 시간 표시 (우측 정렬)
             const myHeaderRow = document.createElement('div');
-            myHeaderRow.style.cssText = 'display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-bottom:6px;';
+            myHeaderRow.style.cssText = 'display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-bottom:2px;';
             
             // 이름
             const myNameSpan = document.createElement('span');
@@ -350,7 +352,7 @@ async function syncChats() {
         
         if (currentRoomId) {
           contentDiv.style.lineHeight = '1.4';
-          contentDiv.style.marginTop = '-2px';
+          contentDiv.style.marginTop = '0px';
           if (msg.sender_email === getCurrentUserEmail()) {
             contentDiv.style.paddingRight = '8px';
           } else {
@@ -923,6 +925,8 @@ window.addEventListener('DOMContentLoaded', () => {
           // 사이드바 이름도 업데이트
           const un = document.querySelector('.user-name');
           if(un) un.textContent = newName;
+          const uemail = document.getElementById('userEmailDisplay');
+          if(uemail) uemail.textContent = email;
           // 환영 문구도 업데이트
           const greetingTitle = document.getElementById('welcomeTitle');
           if (greetingTitle) {

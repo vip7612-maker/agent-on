@@ -63,15 +63,10 @@ function oauthSignIn() {
     'state': 'login'
   };
 
-  for (const p in params) {
-    const input = document.createElement('input');
-    input.setAttribute('type', 'hidden');
-    input.setAttribute('name', p);
-    input.setAttribute('value', params[p]);
-    form.appendChild(input);
-  }
-  document.body.appendChild(form);
-  form.submit();
+  const queryString = new URLSearchParams(params).toString();
+  const authUrl = `${oauth2Endpoint}?${queryString}`;
+  console.log("Redirecting to:", authUrl);
+  window.location.href = authUrl;
 }
 
 // 구글 토큰 추출 및 사용자 정보 로드
@@ -862,9 +857,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   const googleLoginBtn = document.getElementById('googleLoginBtn');
-  if (googleLoginBtn) {
-    googleLoginBtn.addEventListener('click', oauthSignIn);
-  }
+  // 인라인 onclick 이벤트로 대체됨
   
   // 모바일에서 채팅 영역 터치 시 사이드바 숨김 처리
   const mainContent = document.querySelector('.main-content');

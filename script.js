@@ -346,6 +346,17 @@ async function syncChats() {
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
         contentDiv.textContent = msg.content;
+        
+        if (currentRoomId) {
+          contentDiv.style.lineHeight = '1.4';
+          contentDiv.style.marginTop = '-2px';
+          if (msg.sender_email === myEmail) {
+            contentDiv.style.paddingRight = '8px';
+          } else {
+            contentDiv.style.paddingLeft = '36px'; // 로고(28px) + gap(8px)
+          }
+        }
+        
         msgDiv.appendChild(contentDiv);
         
         // 봇 메시지 하단에 복사 버튼 추가 (AiON 채팅에서만)
@@ -443,6 +454,11 @@ async function handleSend() {
   const uContent = document.createElement('div');
   uContent.className = 'message-content';
   uContent.textContent = finalMessage;
+  if (currentRoomId) {
+    uContent.style.lineHeight = '1.4';
+    uContent.style.marginTop = '-2px';
+    uContent.style.paddingRight = '8px';
+  }
   userDiv.appendChild(uContent);
   messagesEl.appendChild(userDiv);
 

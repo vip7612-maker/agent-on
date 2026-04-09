@@ -293,7 +293,7 @@ async function handleSend() {
   // 하네스가 선택되어 있으면 합성
   let finalMessage = text;
   if (selectedHarness) {
-    const lines = selectedHarness.content.split('\n').filter(l => l.trim()).map(l => '- ' + l.trim()).join('\n');
+    const lines = selectedHarness.content.split('\n').filter(l => l.trim()).join('\n');
     finalMessage = text + '\n\n[하네스:' + selectedHarness.title + ']\n' + lines;
     selectedHarness = null;
     const indicator = document.getElementById('harnessIndicator');
@@ -305,7 +305,7 @@ async function handleSend() {
   userDiv.className = `message user`;
   const uContent = document.createElement('div');
   uContent.className = 'message-content';
-  uContent.textContent = text;
+  uContent.textContent = finalMessage;
   userDiv.appendChild(uContent);
   messagesEl.appendChild(userDiv);
 

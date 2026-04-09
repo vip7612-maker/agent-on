@@ -859,7 +859,9 @@ async function fetchMyRooms(email) {
   try {
     const res = await fetch('/api/rooms', { headers: {'User-Email': email} });
     const data = await res.json();
-    if(data.success && data.rooms) {
+    if(data.success && data.rooms && data.rooms.length > 0) {
+      const groupSection = document.getElementById('groupSection');
+      if(groupSection) groupSection.style.display = 'block';
       const container = document.getElementById('groupRoomsList');
       if(container) {
         container.innerHTML = data.rooms.map(r => `

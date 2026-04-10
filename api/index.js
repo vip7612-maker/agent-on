@@ -119,6 +119,7 @@ async function initDb() {
     try { await db.execute('ALTER TABLE messages ADD COLUMN sender_email TEXT NULL'); } catch(e){}
     try { await db.execute('ALTER TABLE users ADD COLUMN picture TEXT NULL'); } catch(e){}
     try { await db.execute('ALTER TABLE users ADD COLUMN webhook_url TEXT NULL'); } catch(e){}
+    try { await db.execute('ALTER TABLE users ADD COLUMN agent_user_id TEXT NULL'); } catch(e){}
     // 계정별 하네스 노출 설정 테이블
     await db.execute(`
       CREATE TABLE IF NOT EXISTS user_harness_prefs (
@@ -212,28 +213,45 @@ app.post('/api/chat', async (req, res) => {
 
     // 1. 개별 유저 웹훅 연결 연동
     let webhookUrl = null;
+    let agentUserId = null;
     if (senderEmail) {
-      const userRes = await db.execute({ sql: "SELECT webhook_url FROM users WHERE email = ?", args: [senderEmail] });
-      if(userRes.rows.length > 0 && userRes.rows[0].webhook_url) {
-        webhookUrl = userRes.rows[0].webhook_url;
+      const userRes = await db.execute({ sql: "SELECT webhook_url, agent_user_id FROM users WHERE email = ?", args: [senderEmail] });
+      if(userRes.rows.length > 0) {
+        if(userRes.rows[0].webhook_url) webhookUrl = userRes.rows[0].webhook_url;
+        if(userRes.rows[0].agent_user_id) agentUserId = userRes.rows[0].agent_user_id;
+      }
+    }
+
+    // 메시지 전처리 (음성 메시지에서 텍스트만 추출)
+    let cleanMsg = message;
+    if (message.startsWith('[AUDIO]')) {
+      const parts = message.split('|');
+      if (parts.length >= 3) {
+        cleanMsg = parts.slice(2).join('|').trim();
+        if(!cleanMsg) cleanMsg = "(음성 메시지에 포함된 텍스트가 없습니다.)";
+      }
+    }
+
+    // 2. 외부 에이전트 API 포워딩 (agent_user_id가 설정된 경우)
+    if (agentUserId) {
+      try {
+        const agentRes = await fetch('https://api.agent.aipart.io/messages/inbound', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: agentUserId, content: cleanMsg })
+        });
+        console.log(`[Agent API Forward] user_id=${agentUserId}, status=${agentRes.status}`);
+      } catch (agentErr) {
+        console.error('[Agent API Forward Error]:', agentErr.message);
       }
     }
 
     if (webhookUrl) {
       try {
-          let webhookMsg = message;
-          if (message.startsWith('[AUDIO]')) {
-            const parts = message.split('|');
-            if (parts.length >= 3) {
-              webhookMsg = parts.slice(2).join('|').trim();
-              if(!webhookMsg) webhookMsg = "(음성 메시지에 포함된 텍스트가 없습니다.)";
-            }
-          }
-
         await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: webhookMsg, room_id, sender_email: senderEmail })
+          body: JSON.stringify({ message: cleanMsg, room_id, sender_email: senderEmail })
         });
         return res.json({ success: true, forwarded: true });
       } catch (err) {
@@ -762,8 +780,11 @@ app.get('/api/user/webhook', async (req, res) => {
   try {
     const userEmail = req.headers['user-email'];
     if(!userEmail) return res.status(401).json({ error: 'Unauthorized' });
-    const uRes = await db.execute({ sql: 'SELECT webhook_url FROM users WHERE email = ?', args: [userEmail] });
-    res.json({ webhook_url: uRes.rows.length > 0 ? uRes.rows[0].webhook_url : '' });
+    const uRes = await db.execute({ sql: 'SELECT webhook_url, agent_user_id FROM users WHERE email = ?', args: [userEmail] });
+    res.json({
+      webhook_url: uRes.rows.length > 0 ? uRes.rows[0].webhook_url : '',
+      agent_user_id: uRes.rows.length > 0 ? uRes.rows[0].agent_user_id : ''
+    });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -771,10 +792,81 @@ app.post('/api/user/webhook', async (req, res) => {
   try {
     const userEmail = req.headers['user-email'];
     if(!userEmail) return res.status(401).json({ error: 'Unauthorized' });
-    const { webhook_url } = req.body;
+    const { webhook_url, agent_user_id } = req.body;
     await db.execute({ sql: 'UPDATE users SET webhook_url = ? WHERE email = ?', args: [webhook_url, userEmail] });
+    if (agent_user_id !== undefined) {
+      await db.execute({ sql: 'UPDATE users SET agent_user_id = ? WHERE email = ?', args: [agent_user_id, userEmail] });
+    }
     res.json({ success: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================
+// Google Chat API Proxy
+// ============================================
+
+// Spaces 목록 조회
+app.get('/api/gchat/spaces', async (req, res) => {
+  const token = req.headers['google-access-token'];
+  if (!token) return res.status(401).json({ error: { message: 'Google access token required' } });
+  try {
+    const response = await fetch('https://chat.googleapis.com/v1/spaces', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) return res.status(response.status).json(data);
+    res.json(data);
+  } catch(e) {
+    console.error('[GChat Proxy] spaces error:', e.message);
+    res.status(500).json({ error: { message: e.message } });
+  }
+});
+
+// 특정 Space의 메시지 조회
+app.get('/api/gchat/spaces/:spaceId/messages', async (req, res) => {
+  const token = req.headers['google-access-token'];
+  if (!token) return res.status(401).json({ error: { message: 'Google access token required' } });
+  const { spaceId } = req.params;
+  const pageSize = req.query.pageSize || 50;
+  const pageToken = req.query.pageToken || '';
+  try {
+    let url = `https://chat.googleapis.com/v1/spaces/${spaceId}/messages?pageSize=${pageSize}`;
+    if (pageToken) url += `&pageToken=${pageToken}`;
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) return res.status(response.status).json(data);
+    res.json(data);
+  } catch(e) {
+    console.error('[GChat Proxy] messages error:', e.message);
+    res.status(500).json({ error: { message: e.message } });
+  }
+});
+
+// 메시지 전송
+app.post('/api/gchat/spaces/:spaceId/messages', async (req, res) => {
+  const token = req.headers['google-access-token'];
+  if (!token) return res.status(401).json({ error: { message: 'Google access token required' } });
+  const { spaceId } = req.params;
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: { message: 'text is required' } });
+  try {
+    const response = await fetch(`https://chat.googleapis.com/v1/spaces/${spaceId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ text })
+    });
+    const data = await response.json();
+    if (!response.ok) return res.status(response.status).json(data);
+    res.json(data);
+  } catch(e) {
+    console.error('[GChat Proxy] send error:', e.message);
+    res.status(500).json({ error: { message: e.message } });
+  }
 });
 
 const PORT = process.env.PORT || 3000;

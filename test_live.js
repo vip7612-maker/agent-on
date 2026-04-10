@@ -1,3 +1,22 @@
+var document = { 
+  getElementById: function(){ return {}; }, 
+  querySelector: function(){}, 
+  createElement: function(){ return { setAttribute: function(){}, appendChild: function(){} }; }, 
+  body: { appendChild: function(){} } 
+};
+var window = { 
+  location: { search: '', origin: '', href: '' }, 
+  addEventListener: function() {}, 
+  history: { replaceState: function(){} } 
+};
+var URLSearchParams = function(){ this.has = function(){ return false; }; this.get = function(){}; this.toString = function(){ return ""; }; };
+var localStorage = { getItem: function(){ return null; }, setItem: function(){}, removeItem: function(){} };
+var console = { log: function(){}, error: function(){} };
+var location = { hash: "" };
+var fetch = function(){};
+var navigator = { mediaDevices: null };
+var Math = globalThis.Math;
+var Date = globalThis.Date;
 // script.js
 
 const messagesEl = document.getElementById('messages');
@@ -13,27 +32,9 @@ let selectedHarness = null; // 선택된 하네스 객체 {id, title, content}
 let currentRoomId = null; // 현재 선택된 그룹챗 ID (null이면 1:1 AiON 채팅)
 let isPopupMode = false; // 독립창 모드 여부
 let popupRoomName = '';
-let lastSyncedUserEmail = ''; // 마지막으로 동기화한 사용자 이메일 (계정 전환 감지용)
 
 function renderPlainText(text) {
   if (!text) return '';
-  if (text.startsWith('[AUDIO]')) {
-    const parts = text.split('|');
-    if (parts.length >= 3) {
-      const audioUrl = parts[1];
-      const actualText = parts.slice(2).join('|');
-      let html = `<audio controls src="${audioUrl}" style="max-width:240px; margin-bottom:8px; display:block;"></audio>`;
-      if (actualText && actualText.trim() !== '') {
-        html += `<div>` + actualText.split('\n').map(line => {
-          const span = document.createElement('span');
-          span.textContent = line;
-          return span.outerHTML;
-        }).join('<br/>') + `</div>`;
-      }
-      return html;
-    }
-  }
-
   return text.split('\n').map(line => {
     const span = document.createElement('span');
     span.textContent = line;
@@ -53,17 +54,13 @@ if (urlParams.has('room_id')) {
   }
 }
 
-window.hideAllViews = function() {
-  const views = ['chatView', 'historyView', 'boardView', 'harnessGalleryView', 'automationGalleryView', 'adminSettingsView', 'accountSettingsView', 'landingView', 'userWebhookView'];
-  views.forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.style.display = 'none';
-  });
-};
-
 // 모든 메인 뷰를 숨기고 지정한 뷰만 표시
 function showMainView(viewId) {
-  window.hideAllViews();
+  var views = ['chatView', 'historyView', 'boardView', 'harnessGalleryView', 'automationGalleryView', 'adminSettingsView', 'accountSettingsView', 'landingView'];
+  views.forEach(function(id) {
+    var el = document.getElementById(id);
+    if(el) el.style.display = 'none';
+  });
   var target = document.getElementById(viewId);
   if(target) target.style.display = 'flex';
   // 네비 active 해제
@@ -79,13 +76,12 @@ function showMainView(viewId) {
 const GOOGLE_CLIENT_ID = '877998748218-emlbeacavipfdl1od8k61b4034on29n3.apps.googleusercontent.com';
 
 // 구글 OAuth 2.0 로그인 (Implicit Flow)
-function oauthSignIn(event) {
-  if (event) {
-    event.preventDefault();
-  }
-  console.log("oauthSignIn called!");
+function oauthSignIn() {
   const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
-  
+  const form = document.createElement('form');
+  form.setAttribute('method', 'GET');
+  form.setAttribute('action', oauth2Endpoint);
+
   const params = {
     'client_id': GOOGLE_CLIENT_ID,
     'redirect_uri': window.location.origin, // 예: https://agent-on.vercel.app
@@ -98,7 +94,7 @@ function oauthSignIn(event) {
   const queryString = new URLSearchParams(params).toString();
   const authUrl = `${oauth2Endpoint}?${queryString}`;
   console.log("Redirecting to:", authUrl);
-  window.location.assign(authUrl);
+  window.location.href = authUrl;
 }
 
 // 구글 토큰 추출 및 사용자 정보 로드
@@ -118,9 +114,6 @@ async function checkGoogleLogin() {
   if (Object.keys(params).length > 0 && params['access_token']) {
     savedToken = params['access_token'];
     localStorage.setItem('agentOn_token', savedToken);
-    // 새 토큰 발급 시 이전 사용자 정보 즉시 폐기 (계정 전환 보호)
-    localStorage.removeItem('agentOn_user');
-    savedUser = null;
     window.history.replaceState({}, document.title, window.location.pathname);
   }
   
@@ -140,18 +133,8 @@ async function checkGoogleLogin() {
       applyUserInfo(userInfo);
     } catch (err) {
       console.error('Failed to fetch user info', err);
-      // 중요: 네트워크 오류 시 이전(다른) 계정 정보로 폴백하지 않음
-      // localStorage에 저장된 최신 사용자 정보만 사용
-      const freshUserStr = localStorage.getItem('agentOn_user');
-      if (freshUserStr) {
-        try {
-          applyUserInfo(JSON.parse(freshUserStr));
-        } catch(e) {
-          showLandingPage();
-        }
-      } else {
-        showLandingPage();
-      }
+      if (savedUser) applyUserInfo(savedUser);
+      else showLandingPage();
     }
   } else {
     showLandingPage();
@@ -290,56 +273,14 @@ function getCurrentUserEmail() {
 }
 
 // 대화 내역 실시간 동기화 (폴링 기법)
-let lastAionMsgCount = 0;
-
-async function checkAionBadge() {
-  const email = getCurrentUserEmail();
-  if(!email) return;
-  // 현재 'AiON 채팅' 화면(currentRoomId == null이고 과거 히스토리가 아님)을 보고 있다면, 배지를 확인할 필요 없이 해당 채팅방 syncChats에서 카운트가 업로드됨
-  if (currentRoomId === null && !isViewingHistory && document.getElementById('chatView').style.display !== 'none') {
-    // 뱃지 숨김 유지
-    const badge = document.getElementById('aionChatBadge');
-    if(badge) badge.style.display = 'none';
-    lastAionMsgCount = currentMsgCount > 0 ? currentMsgCount : lastAionMsgCount; 
-    return;
-  }
-  
-  try {
-    const res = await fetch('/api/chat/count/aion', { headers: { 'User-Email': email } });
-    const data = await res.json();
-    if(data && typeof data.count === 'number') {
-      const badge = document.getElementById('aionChatBadge');
-      if(badge) {
-        if(lastAionMsgCount === 0) lastAionMsgCount = data.count; // 초기 진입 로드
-        const diff = data.count - lastAionMsgCount;
-        if(diff > 0) {
-          badge.innerText = diff > 99 ? '99+' : diff;
-          badge.style.display = 'inline-block';
-        } else {
-          badge.style.display = 'none';
-        }
-      }
-    }
-  } catch(e) {}
-}
-
 async function syncChats() {
   if (isViewingHistory) return; // 히스토리 화면이거나 과거 대화를 볼 때는 중단
   
   try {
-    const currentEmail = getCurrentUserEmail();
     const url = currentRoomId ? `/api/chat?room_id=${currentRoomId}` : '/api/chat';
-    const res = await fetch(url, { headers: { 'User-Email': currentEmail } });
+    const res = await fetch(url, { headers: { 'User-Email': getCurrentUserEmail() } });
     const data = await res.json();
-    
-    // 계정 전환 감지: 유저가 바뀌면 무조건 화면 초기화
-    const userChanged = (currentEmail !== lastSyncedUserEmail);
-    if (userChanged) {
-      lastSyncedUserEmail = currentEmail;
-      currentMsgCount = -1; // 강제 리렌더링
-    }
-    
-    if (data.success && (data.messages.length !== currentMsgCount || userChanged)) {
+    if (data.success && data.messages.length !== currentMsgCount) {
       currentMsgCount = data.messages.length;
       
       // 기존 메시지들 비우기
@@ -510,10 +451,7 @@ async function syncChats() {
 }
 
 // 2초 간격으로 새 메시지 모니터링 (다른 맥미니에서 인바운드 웹훅으로 쏘는 데이터 포착용)
-setInterval(() => {
-  syncChats();
-  checkAionBadge();
-}, 2000);
+setInterval(syncChats, 2000);
 
 // 메시지 전송 핸들러
 async function handleSend() {
@@ -569,137 +507,6 @@ async function handleSend() {
   }
 }
 
-// --- 음성 녹음 및 STT 로직 시작 ---
-let isMicRecording = false;
-let mediaRecorder = null;
-let audioChunks = [];
-let voiceRecognitionInstance = null;
-let recognizedTextBuffer = '';
-
-async function toggleMicrophone() {
-  if (isMicRecording) {
-    stopRecording();
-  } else {
-    startRecording();
-  }
-}
-
-async function startRecording() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioChunks = [];
-    recognizedTextBuffer = '';
-    
-    mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.ondataavailable = e => {
-      if(e.data.size > 0) audioChunks.push(e.data);
-    };
-    
-    mediaRecorder.onstop = async () => {
-      const mimeType = mediaRecorder.mimeType || 'audio/webm';
-      const audioBlob = new Blob(audioChunks, { type: mimeType });
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      reader.onloadend = async () => {
-        const base64Audio = reader.result;
-        await submitVoiceMessage(base64Audio, recognizedTextBuffer);
-      };
-      stream.getTracks().forEach(track => track.stop());
-    };
-    
-    mediaRecorder.start();
-    isMicRecording = true;
-    if(micBtn) micBtn.style.color = '#ef4444'; // 녹음 중 빨간색 표시
-    
-    // AiON 채팅방(currentRoomId===null)일 때만 STT 연동
-    if (currentRoomId === null && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      const SpeechReg = window.SpeechRecognition || window.webkitSpeechRecognition;
-      voiceRecognitionInstance = new SpeechReg();
-      voiceRecognitionInstance.lang = 'ko-KR';
-      voiceRecognitionInstance.continuous = true;
-      voiceRecognitionInstance.interimResults = false;
-      
-      voiceRecognitionInstance.onresult = (event) => {
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            recognizedTextBuffer += event.results[i][0].transcript + ' ';
-          }
-        }
-      };
-      
-      voiceRecognitionInstance.onerror = (e) => console.log('STT Error', e);
-      voiceRecognitionInstance.start();
-    }
-  } catch(e) {
-    console.error('🎤 Mic access error:', e);
-    alert('마이크 접근 불가능 또는 권한이 거부되었습니다.');
-  }
-}
-
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
-  }
-  if (voiceRecognitionInstance) {
-    voiceRecognitionInstance.stop();
-    voiceRecognitionInstance = null;
-  }
-  isMicRecording = false;
-  if(micBtn) micBtn.style.color = ''; // 색상 원복
-}
-
-async function submitVoiceMessage(audioDataUrl, sttText) {
-  let finalMessage = '';
-  if (currentRoomId === null) {
-    finalMessage = sttText.trim() ? sttText.trim() : '[음성만 녹음됨]';
-  } else {
-    finalMessage = '(그룹채팅 음성메시지)'; 
-  }
-  
-  const payloadMessage = `[AUDIO]${audioDataUrl}|${finalMessage}`;
-  
-  // UI 즉각 반영 (낙관적 렌더링)
-  const myEmail = getCurrentUserEmail();
-  let userName = '나';
-  try {
-    const uData = localStorage.getItem('agentOn_user');
-    if(uData) userName = JSON.parse(uData).name;
-  }catch(e){}
-  
-  const newMsg = document.createElement('div');
-  newMsg.className = 'message user';
-  
-  // 아바타나 헤더 등 최소 표시 (간단히 오른쪽 정렬)
-  let innerHtml = `<div style="display:flex; flex-direction:column; align-items:flex-end;">`;
-  innerHtml += `<div style="font-size:0.8rem; font-weight:600; color:var(--text-high); margin-bottom:4px;">나(${userName})</div>`;
-  innerHtml += `<div class="message-content" style="display:flex; flex-direction:column; gap:8px;">`;
-  innerHtml += `<audio controls src="${audioDataUrl}" style="max-width:240px; border-radius:12px;"></audio>`;
-  if(finalMessage) {
-    innerHtml += `<div style="opacity:0.9;">${renderPlainText(finalMessage.replace('[AUDIO]', ''))}</div>`;
-  }
-  innerHtml += `</div></div>`;
-  
-  newMsg.innerHTML = innerHtml;
-  messagesEl.appendChild(newMsg);
-  setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 50);
-
-  // DB 전송
-  try {
-    await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Email': myEmail },
-      body: JSON.stringify({ message: payloadMessage, room_id: currentRoomId })
-    });
-    syncChats();
-  } catch (err) {
-    console.error('Audio message upload failed:', err);
-  }
-}
-// --- 음성 녹음 로직 종료 ---
-
-const micBtn = document.getElementById('micBtn');
-if(micBtn) micBtn.addEventListener('click', toggleMicrophone);
-
 sendBtn.addEventListener('click', handleSend);
 inputEl.addEventListener('keypress', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
@@ -720,12 +527,12 @@ inputEl.addEventListener('focus', () => {
 });
 
 if (window.visualViewport) {
-  const updateViewportHeight = () => {
-    document.body.style.height = `${window.visualViewport.height}px`;
-    window.scrollTo(0, 0);
-  };
-  window.visualViewport.addEventListener('resize', updateViewportHeight);
-  updateViewportHeight();
+  window.visualViewport.addEventListener('resize', () => {
+    if (document.activeElement === inputEl) {
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+    }
+  });
 }
 
 // iOS 스크롤 바운스 방지: 허용된 스크롤 가능 영역 외의 터치 스크롤 차단
@@ -807,59 +614,6 @@ function timeSince(dateString) {
   return Math.floor(seconds) + "초 전";
 }
 
-window.openRoomInMainView = function(roomId, roomName, btnElement) {
-  isViewingHistory = false;
-  currentRoomId = roomId;
-
-  // 하이라이트 상태 업데이트
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.group-room-btn').forEach(el => el.classList.remove('active'));
-  if (btnElement) btnElement.classList.add('active');
-
-  // 화면 뷰 전환
-  window.hideAllViews();
-  const chatView = document.getElementById('chatView');
-  if(chatView) chatView.style.display = 'flex';
-  
-  // 헤더 및 환영 메시지 처리
-  const chatRoomHeader = document.getElementById('chatRoomHeader');
-  const chatRoomTitle = document.getElementById('chatRoomTitle');
-  if(chatRoomHeader) chatRoomHeader.style.display = 'flex';
-  if(chatRoomTitle) chatRoomTitle.innerText = roomName;
-  const subTitleEl = document.querySelector('.welcome-subtitle');
-  if(subTitleEl) subTitleEl.innerText = roomName + ' 채팅방에 오신 것을 환영합니다';
-
-  // 버튼/입력창 처리 (팝업모드와 동일하게 하네스 숨김, 파일첨부 보임)
-  const harnessBtn = document.getElementById('harnessBtn');
-  if(harnessBtn) harnessBtn.style.display = 'none';
-  const harnessPopup = document.getElementById('harnessPopup');
-  if(harnessPopup) harnessPopup.style.display = 'none';
-  const attachBtn = document.getElementById('attachBtn');
-  if(attachBtn) attachBtn.style.display = '';
-  
-  const inputEl = document.getElementById('chatInput');
-  if(inputEl) {
-    inputEl.setAttribute('data-placeholder', '메시지를 입력하세요.');
-    if (inputEl.innerText.trim() === '') {
-      const ph = document.getElementById('placeholder');
-      if (ph) ph.textContent = '메시지를 입력하세요.';
-    }
-  }
-
-  // 메시지 화면 초기화 및 동기화 재시작
-  messagesEl.innerHTML = '';
-  messagesEl.style.display = 'none';
-  welcomeScreen.style.display = 'flex';
-  currentMsgCount = -1; // 강제 새로고침 플래그
-  if(typeof syncChats === 'function') syncChats();
-
-  // 모바일인 경우 사이드바 닫기
-  const sb = document.querySelector('.sidebar');
-  if (window.innerWidth <= 768 && sb.classList.contains('open')) {
-    sb.classList.remove('open');
-  }
-};
-
 async function loadHistoryList() {
   if (!historyList) return;
   try {
@@ -888,10 +642,10 @@ async function loadHistoryList() {
         // 클릭 시 해당 과거 대화 로드
         navChat.classList.add('active');
         navHistory.classList.remove('active');
-        
-        window.hideAllViews();
         chatView.style.display = 'flex';
-        
+        historyView.style.display = 'none';
+        const adv0 = document.getElementById('adminSettingsView'); if(adv0) adv0.style.display = 'none';
+        const acv0 = document.getElementById('accountSettingsView'); if(acv0) acv0.style.display = 'none';
         isViewingHistory = true; // 과거 모드 (폴링 중단)
         
         messagesEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);">과거 세션 불러오는 중...</div>';
@@ -931,10 +685,17 @@ if (navChat && navHistory && navBoard) {
        currentRoomId = null;
        document.querySelectorAll('.group-room-btn').forEach(b => b.classList.remove('active'));
        
-       window.hideAllViews();
        chatView.style.display = 'flex';
-       const badge = document.getElementById('aionChatBadge');
-       if(badge) badge.style.display = 'none';
+       historyView.style.display = 'none';
+       boardView.style.display = 'none';
+       const hgv = document.getElementById('harnessGalleryView');
+       if(hgv) hgv.style.display = 'none';
+       const agv = document.getElementById('automationGalleryView');
+       if(agv) agv.style.display = 'none';
+       const lv = document.getElementById('landingView');
+       if(lv) lv.style.display = 'none';
+       const adv1 = document.getElementById('adminSettingsView'); if(adv1) adv1.style.display = 'none';
+       const acv1 = document.getElementById('accountSettingsView'); if(acv1) acv1.style.display = 'none';
        
        // 메시지 영역 즉시 초기화 (그룹챗 잔류 방지)
        messagesEl.innerHTML = '';
@@ -979,8 +740,15 @@ if (navChat && navHistory && navBoard) {
     navBoard.classList.remove('active');
     
     if (localStorage.getItem('agentOn_token')) {
-       window.hideAllViews();
        historyView.style.display = 'flex';
+       chatView.style.display = 'none';
+       boardView.style.display = 'none';
+       const hgv3 = document.getElementById('harnessGalleryView');
+       if(hgv3) hgv3.style.display = 'none';
+       const lv = document.getElementById('landingView');
+       if(lv) lv.style.display = 'none';
+       const adv3 = document.getElementById('adminSettingsView'); if(adv3) adv3.style.display = 'none';
+       const acv3 = document.getElementById('accountSettingsView'); if(acv3) acv3.style.display = 'none';
        loadHistoryList();
     } else {
        chatView.style.display = 'none';
@@ -1003,8 +771,15 @@ if (navChat && navHistory && navBoard) {
     navHistory.classList.remove('active');
     
     if (localStorage.getItem('agentOn_token')) {
-       window.hideAllViews();
        boardView.style.display = 'flex';
+       chatView.style.display = 'none';
+       historyView.style.display = 'none';
+       const hgv5 = document.getElementById('harnessGalleryView');
+       if(hgv5) hgv5.style.display = 'none';
+       const lv = document.getElementById('landingView');
+       if(lv) lv.style.display = 'none';
+       const adv5 = document.getElementById('adminSettingsView'); if(adv5) adv5.style.display = 'none';
+       const acv5 = document.getElementById('accountSettingsView'); if(acv5) acv5.style.display = 'none';
        
        if (!boardList) return;
        boardList.innerHTML = '<div style="color:var(--text-muted); text-align:center;">저장된 보드 답변 불러오는 중...</div>';
@@ -1163,17 +938,6 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- 나의 웹훅 설정 연결 ---
-  const userWebhookMenu = document.getElementById('userWebhookMenu');
-  if(userWebhookMenu) {
-    userWebhookMenu.addEventListener('click', () => {
-      showMainView('userWebhookView');
-      loadUserWebhook();
-      document.getElementById('userMenuPopup').classList.remove('show');
-    });
-  }
-
-
   // 관리자 서브 메뉴 탭 전환
   document.querySelectorAll('.admin-nav-item').forEach(item => {
     item.addEventListener('click', () => {
@@ -1322,8 +1086,6 @@ async function initUserBackend(userInfo) {
         if(harnessMenu) harnessMenu.style.display = 'flex';
         const automationMenu = document.getElementById('automationSettingMenu');
         if(automationMenu) automationMenu.style.display = 'flex';
-        const userWebhookMenu = document.getElementById('userWebhookMenu');
-        if(userWebhookMenu) userWebhookMenu.style.display = 'flex';
       }
       fetchMyRooms(userInfo.email);
     }
@@ -1348,48 +1110,19 @@ async function fetchMyRooms(email) {
           btn.addEventListener('click', () => {
             const roomId = btn.getAttribute('data-id');
             const rName = btn.innerText.trim();
-            if(typeof window.openRoomInMainView === 'function') {
-              window.openRoomInMainView(roomId, rName, btn);
-            }
+            const width = 450;
+            const height = 750;
+            const left = (window.innerWidth / 2) - (width / 2) + window.screenX;
+            const top = (window.innerHeight / 2) - (height / 2) + window.screenY;
+            const features = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no`;
+            
+            window.open(`/?room_id=${roomId}&room_name=${encodeURIComponent(rName)}`, `groupchat_${roomId}`, features);
           });
         });
       }
     }
   } catch(e) { console.error('Rooms fetch failed', e); }
 }
-
-window.adminAddUser = async function() {
-  const targetEmail = document.getElementById('newAdminUserEmail').value.trim();
-  const targetName = document.getElementById('newAdminUserName').value.trim();
-  
-  if (!targetEmail || !targetName) {
-    alert('이메일과 이름을 모두 입력해주세요.');
-    return;
-  }
-  
-  try {
-    const res = await fetch('/api/admin/users/add', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Email': getCurrentUserEmail()
-      },
-      body: JSON.stringify({ targetEmail, targetName })
-    });
-    const data = await res.json();
-    if(data.success) {
-      document.getElementById('newAdminUserEmail').value = '';
-      document.getElementById('newAdminUserName').value = '';
-      alert('사용자가 성공적으로 추가되었습니다.');
-      loadAdminData();
-    } else {
-      alert('추가 실패: ' + (data.error || '알 수 없는 오류'));
-    }
-  } catch(e) {
-    console.error(e);
-    alert('추가 중 오류 발생');
-  }
-};
 
 async function loadAdminData() {
   const email = getCurrentUserEmail();
@@ -1565,49 +1298,73 @@ function renderDropdown(roomId, query, eligibleUsers, existingEmails) {
       }
     });
   });
-}
   
-  // 4. 나의 웹훅 설정 로드
-window.loadUserWebhook = async function() {
-  const email = getCurrentUserEmail();
-  if(!email) return;
+  // 4. 웹훅 설정 로드
   try {
-    const res = await fetch('/api/user/webhook', {
-      headers: { 'User-Email': email }
-    });
-    const data = await res.json();
-    const inputEl = document.getElementById('userWebhookUrlInput');
-    if(inputEl) inputEl.value = data.webhook_url || '';
-    const agentIdEl = document.getElementById('userAgentIdInput');
-    if(agentIdEl) agentIdEl.value = data.agent_user_id || '';
-  } catch(err) {
-    console.error('Webhook load error:', err);
+    const setRes = await fetch('/api/admin/settings', { headers: {'User-Email': email} });
+    const setData = await setRes.json();
+    if(setData.success && setData.settings) {
+      const aionUrl = document.getElementById('webhookAionUrl');
+      const antiUrl = document.getElementById('webhookAntigravityUrl');
+      if(aionUrl) aionUrl.value = setData.settings['AION_WEBHOOK_URL'] || '';
+      if(antiUrl) antiUrl.value = setData.settings['ANTIGRAVITY_WEBHOOK_URL'] || '';
+      if (typeof window.updateGeneratedPrompt === 'function') window.updateGeneratedPrompt();
+    }
+  } catch(e) { console.error(e); }
+}
+
+window.saveWebhookSettings = async function() {
+  const email = getCurrentUserEmail();
+  const aionUrl = document.getElementById('webhookAionUrl').value.trim();
+  const antiUrl = document.getElementById('webhookAntigravityUrl').value.trim();
+  
+  const settings = {
+    AION_WEBHOOK_URL: aionUrl,
+    ANTIGRAVITY_WEBHOOK_URL: antiUrl
+  };
+  
+  const res = await fetch('/api/admin/settings', {
+    method: 'POST',
+    headers: {"Content-Type": "application/json", "User-Email": email},
+    body: JSON.stringify({ settings })
+  });
+  const data = await res.json();
+  if(data.success) {
+    alert('웹훅 설정이 저장되었습니다.');
+    window.updateGeneratedPrompt();
+  } else {
+    alert('저장 실패');
   }
 }
 
-document.getElementById('saveUserWebhookBtn')?.addEventListener('click', async () => {
-  const email = getCurrentUserEmail();
-  if(!email) return alert('로그인이 필요합니다.');
+window.updateGeneratedPrompt = function() {
+  const aionUrl = document.getElementById('webhookAionUrl').value.trim() || '{AiON_챗팅룸_주소}';
+  const antiUrl = document.getElementById('webhookAntigravityUrl').value.trim() || '{Antigravity_웹훅_주소}';
   
-  const webhookUrl = document.getElementById('userWebhookUrlInput').value.trim();
-  const agentUserId = document.getElementById('userAgentIdInput')?.value.trim() || '';
-  try {
-    const res = await fetch('/api/user/webhook', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Email': email },
-      body: JSON.stringify({ webhook_url: webhookUrl, agent_user_id: agentUserId })
-    });
-    const data = await res.json();
-    if(data.success) {
-      alert('나의 웹훅 설정이 저장되었습니다.');
-    } else {
-      alert('저장 실패: ' + data.error);
-    }
-  } catch(err) {
-    console.error('Webhook save error:', err);
-    alert('저장 중 오류 발생');
-  }
-});
+  const prompt = `당신은 현재 이 서버에 상주하며, AiON 웹앱과의 웹훅 브릿지 및 명령 수행 임무를 담당하는 안티그래비티 에이전트입니다.
+
+[설정 정보]
+- 수신용 웹훅 주소(당신의 주소): ${antiUrl}
+- 결과 반환용 AiON 채팅룸 웹훅 주소: ${aionUrl}
+
+[핵심 강제 조항]
+1. 수신용 웹훅 주소로 POST 요청이 들어오는지 항상 Listen 하십시오. 들어오는 JSON payload 구조는 { "message": "...", "room_id": ..., "sender_email": "..." } 입니다.
+2. 당신에게 수신되는 모든 웹훅 데이터는 사용자가 AiON 채팅 앱에서 당신에게 전달한 공식적인 메세지입니다. 
+3. 메세지를 수신하면 "아, AiON 플랫폼에서 온 지시구나"라고 인식하여, 그 안에 담긴 모든 메세지에 대해 즉시 작업을 수행하십시오.
+4. 요청된 지시를 성실히 수행한 뒤, 반드시 터미널(bash) 환경에서 아래와 같은 curl 명령어를 구성하여 '결과 반환용 AiON 채팅룸 웹훅 주소'로 POST 통신을 회신해야 합니다. (강제)
+   curl -X POST "\${aionUrl}" -H "Content-Type: application/json" -d '{ "role": "bot", "content": "결과 텍스트...", "room_id": 수신받은방ID, "sender_email": "수신받은이메일" }'`;
+
+  const ta = document.getElementById('webhookGeneratedPrompt');
+  if(ta) ta.value = prompt;
+}
+
+window.copyWebhookPrompt = function() {
+  const ta = document.getElementById('webhookGeneratedPrompt');
+  if(!ta) return;
+  ta.select();
+  document.execCommand('copy');
+  alert('프롬프트가 복사되었습니다. 안티그래비티 에이전트에게 붙여넣으세요!');
+}
 
 // 사용자 승인/해제
 window.approveUser = async function(targetEmail, role) {

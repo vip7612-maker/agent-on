@@ -36,15 +36,13 @@
         </div>
         <div class="nav-item" id="navHistory"><iconify-icon icon="mdi:history"></iconify-icon> <span class="nav-label">지난 채팅</span></div>
         <div class="nav-item" id="navBoard"><iconify-icon icon="mdi:text-box-check-outline"></iconify-icon> <span class="nav-label">Dash Board</span></div>
-        <div class="menu-divider" style="margin: 8px 16px; border-bottom: 1px solid var(--border-color);"></div>
-        <div class="nav-item" id="navGoogleChat"><iconify-icon icon="mdi:google" style="color:#4285f4;"></iconify-icon> <span class="nav-label">구글챗</span></div>
         <div id="groupSection" style="display: none;">
           <div class="menu-divider" style="margin: 12px 16px; border-bottom: 1px solid var(--border-color);"></div>
           <div id="groupRoomsList" style="display: flex; flex-direction: column; gap: 4px;"></div>
         </div>
       </div>
       <div class="sidebar-footer" style="position: relative;">
-        <a href="https://accounts.google.com/o/oauth2/v2/auth?client_id=877998748218-emlbeacavipfdl1od8k61b4034on29n3.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fagent-on.vercel.app&response_type=token&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fchat.spaces.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fchat.messages&include_granted_scopes=true&state=login" class="google-btn" id="googleLoginBtn" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <a href="https://accounts.google.com/o/oauth2/v2/auth?client_id=877998748218-emlbeacavipfdl1od8k61b4034on29n3.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fagent-on.vercel.app&response_type=token&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email&include_granted_scopes=true&state=login" class="google-btn" id="googleLoginBtn" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;">
           <iconify-icon icon="logos:google-icon"></iconify-icon> <span class="nav-label">구글로 로그인</span>
         </a>
         <div class="user-profile" id="userProfile" style="display: none; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
@@ -67,9 +65,6 @@
           
           <div class="menu-req-item" id="adminSettingMenu" style="display: none;">
             <span><iconify-icon icon="lucide:shield"></iconify-icon> 관리자 설정</span>
-          </div>
-          <div class="menu-req-item" id="userWebhookMenu" style="display: none;">
-            <span><iconify-icon icon="lucide:link"></iconify-icon> 나의 웹훅 설정</span>
           </div>
           <div class="menu-req-item" id="harnessSettingMenu" style="display: none;">
             <span>
@@ -125,7 +120,7 @@
          <p id="landingDesc" style="color: var(--text-muted); font-size: 1.05rem; line-height: 1.6; max-width: 500px; margin-bottom: 40px; word-break: keep-all;">
            단순한 질의응답을 뛰어넘어, 명령만 내리면 백엔드에서 당신의 로컬 환경과 연동되어 <strong>실질적인 업무 시퀀스</strong>를 모조리 수행하는 업계 최고 수준의 극강의 전속 비서입니다.
          </p>
-         <a href="https://accounts.google.com/o/oauth2/v2/auth?client_id=877998748218-emlbeacavipfdl1od8k61b4034on29n3.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fagent-on.vercel.app&response_type=token&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fchat.spaces.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fchat.messages&include_granted_scopes=true&state=login" class="google-btn" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;max-width: 280px; background: var(--text-high); color: var(--bg-primary); padding: 14px 24px; font-size: 1.05rem; box-shadow: 0 4px 14px rgba(255,255,255,0.1);">
+         <a href="https://accounts.google.com/o/oauth2/v2/auth?client_id=877998748218-emlbeacavipfdl1od8k61b4034on29n3.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fagent-on.vercel.app&response_type=token&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email&include_granted_scopes=true&state=login" class="google-btn" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;max-width: 280px; background: var(--text-high); color: var(--bg-primary); padding: 14px 24px; font-size: 1.05rem; box-shadow: 0 4px 14px rgba(255,255,255,0.1);">
            <iconify-icon icon="logos:google-icon"></iconify-icon> 구글로 계속하기
          </a>
       </div>
@@ -340,6 +335,11 @@
             <iconify-icon icon="lucide:shield" style="color:#3b82f6;"></iconify-icon> 관리자
           </div>
           
+          <div style="padding:10px 16px 6px; font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">시스템</div>
+          
+          <div class="admin-nav-item" data-panel="adminPanelWebhook" style="padding:10px 16px; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.9rem; transition:all 0.15s; border-left:3px solid transparent;">
+            <iconify-icon icon="lucide:webhook" style="color:#ef4444;"></iconify-icon> 웹훅 설정
+          </div>
 
           <div style="padding:10px 16px 6px; font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:8px;">기본 관리</div>
 
@@ -408,6 +408,41 @@
             <div id="adminRoomsList" style="display:flex; flex-direction:column; gap:12px;"></div>
           </div>
           
+          <!-- 패널 3: 웹훅 설정 -->
+          <div id="adminPanelWebhook" class="admin-panel" style="display:none; flex-direction:column;">
+            <div style="margin-bottom:20px;">
+              <h2 style="font-weight:600; font-size:1.3rem; margin-bottom:4px; display:flex; align-items:center; gap:8px;">
+                <iconify-icon icon="lucide:webhook" style="color:#ef4444;"></iconify-icon> 웹훅 설정
+              </h2>
+              <span style="color:var(--text-muted); font-size:0.85rem;">로컬 에이전트(Antigravity)와의 양방향 웹훅 통신을 설정합니다.</span>
+            </div>
+            
+            <div style="display:flex; flex-direction:column; gap:16px; max-width:600px;">
+              <div>
+                <label style="display:block; font-size:0.9rem; font-weight:500; color:var(--text-high); margin-bottom:8px;">AiON 챗팅룸 주소 (Webhook Inbound URL)</label>
+                <input type="text" id="webhookAionUrl" placeholder="예: https://api.agent-on.com/api/webhook/inbound" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); font-size:0.9rem; box-sizing:border-box;" oninput="window.updateGeneratedPrompt && window.updateGeneratedPrompt()" />
+              </div>
+              
+              <div>
+                <label style="display:block; font-size:0.9rem; font-weight:500; color:var(--text-high); margin-bottom:8px;">Antigravity Agent 웹훅 주소</label>
+                <input type="text" id="webhookAntigravityUrl" placeholder="예: https://your-cloudflare-tunnel.trycloudflare.com" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-high); font-size:0.9rem; box-sizing:border-box;" oninput="window.updateGeneratedPrompt && window.updateGeneratedPrompt()" />
+              </div>
+              
+              <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+                <button onclick="window.saveWebhookSettings()" style="padding:10px 24px; border-radius:8px; background:linear-gradient(135deg, #ef4444, #f59e0b); border:none; color:#fff; cursor:pointer; font-weight:500;">설정 저장</button>
+              </div>
+            </div>
+            
+            <div style="margin-top:40px; padding-top:20px; border-top:1px solid var(--border-color);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="font-weight:600; font-size:1.1rem; color:var(--text-high); margin:0;">에이전트 주입용 프롬프트 생성기</h3>
+                <button onclick="window.copyWebhookPrompt()" style="display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; background:var(--bg-sidebar); border:1px solid var(--border-color); color:var(--text-high); cursor:pointer; font-size:0.85rem;">
+                  <iconify-icon icon="lucide:copy"></iconify-icon> 프롬프트 복사
+                </button>
+              </div>
+              <textarea id="webhookGeneratedPrompt" readonly rows="12" style="width:100%; padding:16px; border-radius:8px; border:1px solid var(--border-color); background:#1e1e1e; color:#a1a1aa; font-size:0.85rem; line-height:1.6; resize:vertical; box-sizing:border-box; font-family:monospace;"></textarea>
+            </div>
+          </div>
           
           <!-- 패널 3: 멤버 관리 -->
           <div id="adminPanelMembers" class="admin-panel" style="display:none; flex-direction:column;">
@@ -418,85 +453,6 @@
               <span style="color:var(--text-muted); font-size:0.85rem;">각 그룹챗의 참여 멤버를 추가하거나 제거합니다.</span>
             </div>
             <div id="adminMembersList" style="display:flex; flex-direction:column; gap:16px;"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 나의 웹훅 설정 뷰 -->
-      <div id="userWebhookView" style="display: none; flex: 1; flex-direction: column; background-color: var(--bg-main); padding: 40px; overflow-y: auto;">
-        <div style="max-width: 600px; margin: 0 auto; width: 100%;">
-          <div style="margin-bottom: 30px;">
-            <h2 style="font-weight: 600; font-size: 1.5rem; display: flex; align-items: center; gap: 8px;">
-              <iconify-icon icon="lucide:link" style="color: #3b82f6;"></iconify-icon> 나의 웹훅 설정
-            </h2>
-            <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 8px; line-height: 1.5;">나만의 안티그래비티 에이전트(Make.com/n8n) 웹훅 주소를 입력하세요.<br>AiON 채팅방에서 나와 에이전트가 단독으로 통신할 수 있게 됩니다!</p>
-          </div>
-          
-          <div style="display: flex; flex-direction: column; gap: 20px;">
-            <div>
-              <label style="display: block; font-size: 0.9rem; font-weight: 500; color: var(--text-high); margin-bottom: 8px;">개별 에이전트 웹훅 URL</label>
-              <input type="text" id="userWebhookUrlInput" placeholder="예: https://your-tunnel.trycloudflare.com/webhook" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-high); font-size: 0.95rem;" />
-            </div>
-
-            <!-- 외부 에이전트 연동 섹션 -->
-            <div style="border-top: 1px solid var(--border-color); padding-top: 20px;">
-              <label style="display: block; font-size: 0.9rem; font-weight: 500; color: var(--text-high); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                <iconify-icon icon="lucide:radio-tower" style="color: #10b981;"></iconify-icon> 외부 에이전트 ID (AiPart 연동)
-              </label>
-              <input type="text" id="userAgentIdInput" placeholder="예: bd4e4994" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-high); font-size: 0.95rem; box-sizing: border-box;" />
-              <div style="margin-top: 8px; padding: 12px 16px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); border-radius: 8px; font-size: 0.82rem; color: var(--text-muted); line-height: 1.6;">
-                <div style="font-weight: 500; color: #10b981; margin-bottom: 4px;">
-                  <iconify-icon icon="lucide:info" style="vertical-align: middle;"></iconify-icon> 외부 에이전트 API 연동
-                </div>
-                이 ID를 설정하면 AiON 채팅에서 보내는 모든 메시지가<br>
-                <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">https://api.agent.aipart.io/messages/inbound</code><br>
-                으로 동시 전달됩니다.
-              </div>
-            </div>
-            
-            <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
-              <button id="saveUserWebhookBtn" style="padding: 10px 24px; border-radius: 8px; background: linear-gradient(135deg, #3b82f6, #ec4899); border: none; color: #fff; cursor: pointer; font-weight: 500;">설정 저장</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 구글챗 뷰 -->
-      <div id="googleChatView" style="display: none; flex: 1; flex-direction: row; background-color: var(--bg-main); overflow: hidden;">
-        <!-- 좌측: Spaces 리스트 -->
-        <div id="gchatSpacesList" style="width: 260px; min-width: 260px; border-right: 1px solid var(--border-color); background: var(--bg-sidebar); display: flex; flex-direction: column; overflow-y: auto;">
-          <div style="padding: 16px; border-bottom: 1px solid var(--border-color);">
-            <h2 style="font-weight: 600; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; margin: 0;">
-              <iconify-icon icon="mdi:google" style="color:#4285f4;"></iconify-icon> 구글챗
-            </h2>
-            <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">Google Chat Spaces</div>
-          </div>
-          <div id="gchatSpacesContainer" style="flex: 1; overflow-y: auto; padding: 8px;">
-            <div style="padding: 16px; color: var(--text-muted); text-align: center; font-size: 0.9rem;">로그인 후 이용 가능합니다</div>
-          </div>
-        </div>
-        <!-- 우측: 메시지 영역 -->
-        <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
-          <!-- Space 헤더 -->
-          <div id="gchatMessageHeader" style="display: none; padding: 12px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-main); align-items: center; gap: 8px;">
-            <iconify-icon icon="lucide:hash" style="color: var(--text-muted); font-size: 1.2rem;"></iconify-icon>
-            <span id="gchatSpaceTitle" style="font-weight: 600; font-size: 1rem; color: var(--text-high);"></span>
-          </div>
-          <!-- 메시지 목록 -->
-          <div id="gchatMessages" style="flex: 1; overflow-y: auto; padding: 16px 24px; display: flex; flex-direction: column; gap: 4px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent;">
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); gap: 12px;">
-              <iconify-icon icon="mdi:google" style="font-size: 3rem; opacity: 0.3; color: #4285f4;"></iconify-icon>
-              <p style="margin: 0;">왼쪽에서 Space를 선택하세요</p>
-            </div>
-          </div>
-          <!-- 입력창 -->
-          <div id="gchatInputArea" style="display: none; padding: 12px 24px; border-top: 1px solid var(--border-color); background: var(--bg-main);">
-            <div style="display: flex; gap: 8px; align-items: flex-end;">
-              <div id="gchatInput" contenteditable="true" data-placeholder="메시지를 입력하세요..." style="flex: 1; min-height: 40px; max-height: 120px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-high); overflow-y: auto; line-height: 1.5; outline: none; font-size: 0.95rem;" translate="no" spellcheck="false"></div>
-              <button id="gchatSendBtn" class="icon-btn active" style="flex-shrink: 0; height: 40px; width: 40px;" aria-label="전송">
-                <iconify-icon icon="mdi:arrow-up-circle"></iconify-icon>
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -536,6 +492,8 @@
       </div>
     </div>
   </div>
+  </div>
+
   <!-- 그룹챗 공유 팝업 -->
   <div id="sharePopup" style="display:none; position:fixed; background:var(--bg-main); border:1px solid var(--border-color); border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.5); width:200px; padding:8px; z-index:10000; flex-direction:column; gap:4px;">
     <div style="font-size:0.85rem; color:var(--text-muted); padding:4px 8px; margin-bottom:4px; border-bottom:1px solid var(--border-color);">어느 방으로 전달할까요?</div>
@@ -551,7 +509,7 @@
         + '?client_id=877998748218-emlbeacavipfdl1od8k61b4034on29n3.apps.googleusercontent.com'
         + '&redirect_uri=' + encodeURIComponent(window.location.origin)
         + '&response_type=token'
-        + '&scope=' + encodeURIComponent('https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/chat.spaces.readonly https://www.googleapis.com/auth/chat.messages')
+        + '&scope=' + encodeURIComponent('https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email')
         + '&include_granted_scopes=true'
         + '&state=login';
       window.location.assign(url);
@@ -572,10 +530,9 @@
 
       if (!params['access_token']) return; // 토큰이 없으면 종료
 
-      // 토큰 저장 & 이전 사용자 정보 즉시 폐기 (계정 전환 보호)
+      // 토큰 저장 & URL 해시 제거
       var token = params['access_token'];
       localStorage.setItem('agentOn_token', token);
-      localStorage.removeItem('agentOn_user');
       window.history.replaceState({}, document.title, window.location.pathname);
 
       // 구글 API로 유저 정보 가져오기
@@ -648,6 +605,6 @@
       } catch(e) { console.error('Inline auto-login failed', e); }
     })();
   </script>
-  <script src="script.js?v=6.0"></script>
+  <script src="script.js?v=5.1"></script>
 </body>
 </html>

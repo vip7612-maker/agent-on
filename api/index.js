@@ -120,6 +120,7 @@ async function initDb() {
     try { await db.execute('ALTER TABLE users ADD COLUMN picture TEXT NULL'); } catch(e){}
     try { await db.execute('ALTER TABLE users ADD COLUMN webhook_url TEXT NULL'); } catch(e){}
     try { await db.execute('ALTER TABLE users ADD COLUMN agent_user_id TEXT NULL'); } catch(e){}
+    try { await db.execute('ALTER TABLE users ADD COLUMN api_key TEXT NULL'); } catch(e){}
     // 계정별 하네스 노출 설정 테이블
     await db.execute(`
       CREATE TABLE IF NOT EXISTS user_harness_prefs (
@@ -282,7 +283,7 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// 외부 에이전트(안티그래비티)가 대시보드로 데이터를 쏘는 웹훅 (인바운드)
+// 외부 에이전트(안티그래비티)가 대시보드로 데이터를 쏘는 웹훅 (인바운드) - 레거시
 app.post('/api/webhook/inbound', async (req, res) => {
   const { role, content, room_id, sender_email } = req.body;
   if (!content) return res.status(400).json({ success: false, error: 'Missing content' });
@@ -298,6 +299,105 @@ app.post('/api/webhook/inbound', async (req, res) => {
   } catch (err) {
     console.error('[Webhook Inbound Error]:', err);
     res.status(500).json({ success: false, error: '웹훅 저장 실패' });
+  }
+});
+
+// ============================================
+// [자체 인바운드 메시지 API] - API Key 인증 기반
+// 아이폰 단축어, Zapier, n8n 등 외부에서 AiON 채팅으로 메시지 주입
+// ============================================
+
+// POST /api/messages/inbound — 외부에서 메시지 수신
+app.post('/api/messages/inbound', async (req, res) => {
+  // 1. API Key 인증
+  const authHeader = req.headers['authorization'] || '';
+  const apiKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : req.headers['x-api-key'] || '';
+  
+  if (!apiKey) {
+    return res.status(401).json({ success: false, error: 'API Key가 필요합니다. Authorization: Bearer <KEY> 또는 X-Api-Key 헤더를 사용하세요.' });
+  }
+
+  try {
+    // 2. API Key로 사용자 조회
+    const userRes = await db.execute({ sql: 'SELECT email, name FROM users WHERE api_key = ?', args: [apiKey] });
+    if (userRes.rows.length === 0) {
+      return res.status(403).json({ success: false, error: '유효하지 않은 API Key입니다.' });
+    }
+    const ownerEmail = userRes.rows[0].email;
+    const ownerName = userRes.rows[0].name;
+
+    // 3. 메시지 내용 확인
+    const { content, role } = req.body;
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, error: 'content 필드가 필요합니다.' });
+    }
+
+    const msgRole = role || 'user'; // 기본: user 발화로 처리
+
+    // 4. 메시지 저장 (해당 사용자의 AiON 1:1 채팅에 삽입)
+    await db.execute({
+      sql: 'INSERT INTO messages (role, content, session_date, room_id, sender_email) VALUES (?, ?, ?, ?, ?)',
+      args: [msgRole, content.trim(), getGlobalSessionDate(), null, ownerEmail]
+    });
+
+    console.log(`[Messages Inbound] ${msgRole} from ${ownerEmail}: ${content.trim().substring(0, 80)}...`);
+
+    // 5. webhook_url이 설정되어 있으면 에이전트로 포워딩
+    const webhookRes = await db.execute({ sql: 'SELECT webhook_url FROM users WHERE email = ?', args: [ownerEmail] });
+    if (webhookRes.rows.length > 0 && webhookRes.rows[0].webhook_url) {
+      try {
+        await fetch(webhookRes.rows[0].webhook_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: content.trim(), sender_email: ownerEmail })
+        });
+        return res.json({ success: true, forwarded: true, user: ownerEmail });
+      } catch (fwdErr) {
+        console.error('[Messages Inbound Forward Error]:', fwdErr.message);
+        // 포워딩 실패해도 메시지 저장은 성공
+      }
+    }
+
+    res.json({ success: true, user: ownerEmail });
+  } catch (err) {
+    console.error('[Messages Inbound Error]:', err);
+    res.status(500).json({ success: false, error: '메시지 처리 실패' });
+  }
+});
+
+// API Key 생성/재발급
+app.post('/api/user/apikey/generate', async (req, res) => {
+  try {
+    const userEmail = req.headers['user-email'];
+    if (!userEmail) return res.status(401).json({ error: 'Unauthorized' });
+
+    // 사용자 존재 확인
+    const userCheck = await db.execute({ sql: 'SELECT role FROM users WHERE email = ?', args: [userEmail] });
+    if (userCheck.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    // 랜덤 API Key 생성 (aion_ 접두사 + 32자 hex)
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let key = 'aion_';
+    for (let i = 0; i < 32; i++) {
+      key += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    await db.execute({ sql: 'UPDATE users SET api_key = ? WHERE email = ?', args: [key, userEmail] });
+    res.json({ success: true, api_key: key });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// API Key 조회
+app.get('/api/user/apikey', async (req, res) => {
+  try {
+    const userEmail = req.headers['user-email'];
+    if (!userEmail) return res.status(401).json({ error: 'Unauthorized' });
+    const uRes = await db.execute({ sql: 'SELECT api_key FROM users WHERE email = ?', args: [userEmail] });
+    res.json({ api_key: uRes.rows.length > 0 ? (uRes.rows[0].api_key || '') : '' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

@@ -1572,34 +1572,90 @@ window.loadUserWebhook = async function() {
   const email = getCurrentUserEmail();
   if(!email) return;
   try {
+    // 웹훅 URL 로드
     const res = await fetch('/api/user/webhook', {
       headers: { 'User-Email': email }
     });
     const data = await res.json();
     const inputEl = document.getElementById('userWebhookUrlInput');
     if(inputEl) inputEl.value = data.webhook_url || '';
-    const agentIdEl = document.getElementById('userAgentIdInput');
-    if(agentIdEl) agentIdEl.value = data.agent_user_id || '';
+
+    // API Key 로드
+    const keyRes = await fetch('/api/user/apikey', {
+      headers: { 'User-Email': email }
+    });
+    const keyData = await keyRes.json();
+    const keyEl = document.getElementById('userApiKeyDisplay');
+    if(keyEl) {
+      keyEl.value = keyData.api_key || '';
+      if(!keyData.api_key) keyEl.placeholder = '아직 API Key가 없습니다. 아래 버튼을 눌러 생성하세요.';
+    }
   } catch(err) {
     console.error('Webhook load error:', err);
   }
 }
+
+// API Key 생성 버튼
+document.getElementById('generateApiKeyBtn')?.addEventListener('click', async () => {
+  const email = getCurrentUserEmail();
+  if(!email) return alert('로그인이 필요합니다.');
+  
+  if(!confirm('새 API Key를 발급하면 기존 Key는 무효화됩니다. 계속하시겠습니까?')) return;
+  
+  try {
+    const res = await fetch('/api/user/apikey/generate', {
+      method: 'POST',
+      headers: { 'User-Email': email }
+    });
+    const data = await res.json();
+    if(data.success && data.api_key) {
+      const keyEl = document.getElementById('userApiKeyDisplay');
+      if(keyEl) keyEl.value = data.api_key;
+      // 자동 복사
+      navigator.clipboard.writeText(data.api_key).then(() => {
+        alert('새 API Key가 발급되었습니다! (클립보드에 복사됨)\n\n' + data.api_key);
+      }).catch(() => {
+        alert('새 API Key가 발급되었습니다!\n\n' + data.api_key);
+      });
+    } else {
+      alert('발급 실패: ' + (data.error || '알 수 없는 오류'));
+    }
+  } catch(err) {
+    console.error('API Key generate error:', err);
+    alert('발급 중 오류 발생');
+  }
+});
+
+// API Key 복사 버튼
+document.getElementById('copyApiKeyBtn')?.addEventListener('click', () => {
+  const keyEl = document.getElementById('userApiKeyDisplay');
+  if(!keyEl || !keyEl.value) return alert('복사할 API Key가 없습니다.');
+  navigator.clipboard.writeText(keyEl.value).then(() => {
+    const btn = document.getElementById('copyApiKeyBtn');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<iconify-icon icon="lucide:check" style="font-size:1.1rem;color:#10b981;"></iconify-icon>';
+    setTimeout(() => { btn.innerHTML = orig; }, 2000);
+  }).catch(() => {
+    // 폴백: 직접 선택
+    keyEl.select();
+    document.execCommand('copy');
+  });
+});
 
 document.getElementById('saveUserWebhookBtn')?.addEventListener('click', async () => {
   const email = getCurrentUserEmail();
   if(!email) return alert('로그인이 필요합니다.');
   
   const webhookUrl = document.getElementById('userWebhookUrlInput').value.trim();
-  const agentUserId = document.getElementById('userAgentIdInput')?.value.trim() || '';
   try {
     const res = await fetch('/api/user/webhook', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Email': email },
-      body: JSON.stringify({ webhook_url: webhookUrl, agent_user_id: agentUserId })
+      body: JSON.stringify({ webhook_url: webhookUrl })
     });
     const data = await res.json();
     if(data.success) {
-      alert('나의 웹훅 설정이 저장되었습니다.');
+      alert('웹훅 설정이 저장되었습니다.');
     } else {
       alert('저장 실패: ' + data.error);
     }

@@ -233,6 +233,7 @@ app.post('/api/chat', async (req, res) => {
     }
 
     // 2. 외부 에이전트 API 포워딩 (agent_user_id가 설정된 경우)
+    let agentForwarded = false;
     if (agentUserId) {
       try {
         const agentRes = await fetch('https://api.agent.aipart.io/messages/inbound', {
@@ -241,10 +242,13 @@ app.post('/api/chat', async (req, res) => {
           body: JSON.stringify({ user_id: agentUserId, content: cleanMsg })
         });
         console.log(`[Agent API Forward] user_id=${agentUserId}, status=${agentRes.status}`);
+        agentForwarded = agentRes.ok;
       } catch (agentErr) {
         console.error('[Agent API Forward Error]:', agentErr.message);
       }
     }
+
+    let botResponse = '';
 
     if (webhookUrl) {
       try {
@@ -253,11 +257,14 @@ app.post('/api/chat', async (req, res) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: cleanMsg, room_id, sender_email: senderEmail })
         });
-        return res.json({ success: true, forwarded: true });
+        return res.json({ success: true, forwarded: true, agentForwarded });
       } catch (err) {
         console.error('[Webhook Outbound Error]:', err.message);
         botResponse = `[시스템 에러] 안티그래비티 에이전트와 통신할 수 없습니다. 로컬 서버(맥미니)가 꺼져 있거나 Cloudflare Tunnel 주소가 유효하지 않습니다.`;
       }
+    } else if (agentForwarded) {
+      // 외부 에이전트 API로 전달 성공 + 웹훅 미설정: 성공으로 처리
+      return res.json({ success: true, forwarded: false, agentForwarded: true });
     } else {
       botResponse = `[시스템 알림] 안티그래비티 웹훅 주소가 설정되지 않았습니다. 관리자 화면에서 맥미니 웹훅 주소를 입력해 주세요.`;
     }

@@ -121,6 +121,7 @@ async function initDb() {
     try { await db.execute('ALTER TABLE users ADD COLUMN webhook_url TEXT NULL'); } catch(e){}
     try { await db.execute('ALTER TABLE users ADD COLUMN agent_user_id TEXT NULL'); } catch(e){}
     try { await db.execute('ALTER TABLE users ADD COLUMN api_key TEXT NULL'); } catch(e){}
+    try { await db.execute('ALTER TABLE users ADD COLUMN webhook_api_key TEXT NULL'); } catch(e){}
     // 계정별 하네스 노출 설정 테이블
     await db.execute(`
       CREATE TABLE IF NOT EXISTS user_harness_prefs (
@@ -214,10 +215,12 @@ app.post('/api/chat', async (req, res) => {
 
     // 1. 개별 유저 웹훅 연결 연동
     let webhookUrl = null;
+    let webhookApiKey = '';
     if (senderEmail) {
-      const userRes = await db.execute({ sql: "SELECT webhook_url FROM users WHERE email = ?", args: [senderEmail] });
+      const userRes = await db.execute({ sql: "SELECT webhook_url, webhook_api_key FROM users WHERE email = ?", args: [senderEmail] });
       if(userRes.rows.length > 0 && userRes.rows[0].webhook_url) {
         webhookUrl = userRes.rows[0].webhook_url;
+        webhookApiKey = userRes.rows[0].webhook_api_key || '';
       }
     }
 
@@ -235,11 +238,19 @@ app.post('/api/chat', async (req, res) => {
 
     if (webhookUrl) {
       try {
-        console.log(`[Chat → Webhook] ${senderEmail} → ${webhookUrl}: "${cleanMsg.substring(0, 50)}..."`);
+        // 맥미니 /send 엔드포인트 형식 지원 (key + text)
+        let webhookPayload;
+        const webhookKey = webhookApiKey;
+        if (webhookUrl.endsWith('/send') && webhookKey) {
+          webhookPayload = { key: webhookKey, text: cleanMsg };
+        } else {
+          webhookPayload = { message: cleanMsg };
+        }
+        console.log(`[Chat → Webhook] ${senderEmail} → ${webhookUrl}`);
         const fwdRes = await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: cleanMsg })
+          body: JSON.stringify(webhookPayload)
         });
         console.log(`[Chat → Webhook] 응답 status=${fwdRes.status}`);
         return res.json({ success: true, forwarded: true });
@@ -331,13 +342,21 @@ app.post('/api/messages/inbound', async (req, res) => {
     console.log(`[Messages Inbound] ${msgRole} from ${ownerEmail}: ${msgText.trim().substring(0, 80)}...`);
 
     // 5. webhook_url이 설정되어 있으면 에이전트로 포워딩
-    const webhookRes = await db.execute({ sql: 'SELECT webhook_url FROM users WHERE email = ?', args: [ownerEmail] });
+    const webhookRes = await db.execute({ sql: 'SELECT webhook_url, webhook_api_key FROM users WHERE email = ?', args: [ownerEmail] });
     if (webhookRes.rows.length > 0 && webhookRes.rows[0].webhook_url) {
       try {
-        await fetch(webhookRes.rows[0].webhook_url, {
+        const wUrl = webhookRes.rows[0].webhook_url;
+        const wKey = webhookRes.rows[0].webhook_api_key || '';
+        let wPayload;
+        if (wUrl.endsWith('/send') && wKey) {
+          wPayload = { key: wKey, text: msgText.trim() };
+        } else {
+          wPayload = { message: msgText.trim() };
+        }
+        await fetch(wUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: msgText.trim(), sender_email: ownerEmail })
+          body: JSON.stringify(wPayload)
         });
         return res.json({ success: true, forwarded: true, user: ownerEmail });
       } catch (fwdErr) {

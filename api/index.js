@@ -308,13 +308,17 @@ app.post('/api/webhook/inbound', async (req, res) => {
 // ============================================
 
 // POST /api/messages/inbound — 외부에서 메시지 수신
+// 지원 형식 1: { "content": "메시지" } + Authorization: Bearer <KEY>
+// 지원 형식 2: { "key": "<KEY>", "text": "메시지" }  ← 아이폰 단축어 호환
 app.post('/api/messages/inbound', async (req, res) => {
-  // 1. API Key 인증
+  // 1. API Key 인증 (헤더 또는 body.key 모두 지원)
   const authHeader = req.headers['authorization'] || '';
-  const apiKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : req.headers['x-api-key'] || '';
+  const apiKey = authHeader.startsWith('Bearer ') 
+    ? authHeader.slice(7).trim() 
+    : req.headers['x-api-key'] || req.body?.key || '';
   
   if (!apiKey) {
-    return res.status(401).json({ success: false, error: 'API Key가 필요합니다. Authorization: Bearer <KEY> 또는 X-Api-Key 헤더를 사용하세요.' });
+    return res.status(401).json({ success: false, error: 'API Key가 필요합니다.' });
   }
 
   try {
@@ -326,21 +330,21 @@ app.post('/api/messages/inbound', async (req, res) => {
     const ownerEmail = userRes.rows[0].email;
     const ownerName = userRes.rows[0].name;
 
-    // 3. 메시지 내용 확인
-    const { content, role } = req.body;
-    if (!content || !content.trim()) {
-      return res.status(400).json({ success: false, error: 'content 필드가 필요합니다.' });
+    // 3. 메시지 내용 확인 (content 또는 text 필드 지원)
+    const msgText = req.body.content || req.body.text || '';
+    if (!msgText.trim()) {
+      return res.status(400).json({ success: false, error: 'content 또는 text 필드가 필요합니다.' });
     }
 
-    const msgRole = role || 'user'; // 기본: user 발화로 처리
+    const msgRole = req.body.role || 'user'; // 기본: user 발화로 처리
 
     // 4. 메시지 저장 (해당 사용자의 AiON 1:1 채팅에 삽입)
     await db.execute({
       sql: 'INSERT INTO messages (role, content, session_date, room_id, sender_email) VALUES (?, ?, ?, ?, ?)',
-      args: [msgRole, content.trim(), getGlobalSessionDate(), null, ownerEmail]
+      args: [msgRole, msgText.trim(), getGlobalSessionDate(), null, ownerEmail]
     });
 
-    console.log(`[Messages Inbound] ${msgRole} from ${ownerEmail}: ${content.trim().substring(0, 80)}...`);
+    console.log(`[Messages Inbound] ${msgRole} from ${ownerEmail}: ${msgText.trim().substring(0, 80)}...`);
 
     // 5. webhook_url이 설정되어 있으면 에이전트로 포워딩
     const webhookRes = await db.execute({ sql: 'SELECT webhook_url FROM users WHERE email = ?', args: [ownerEmail] });
@@ -349,7 +353,7 @@ app.post('/api/messages/inbound', async (req, res) => {
         await fetch(webhookRes.rows[0].webhook_url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: content.trim(), sender_email: ownerEmail })
+          body: JSON.stringify({ message: msgText.trim(), sender_email: ownerEmail })
         });
         return res.json({ success: true, forwarded: true, user: ownerEmail });
       } catch (fwdErr) {

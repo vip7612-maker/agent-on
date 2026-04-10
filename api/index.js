@@ -214,12 +214,10 @@ app.post('/api/chat', async (req, res) => {
 
     // 1. 개별 유저 웹훅 연결 연동
     let webhookUrl = null;
-    let agentUserId = null;
     if (senderEmail) {
-      const userRes = await db.execute({ sql: "SELECT webhook_url, agent_user_id FROM users WHERE email = ?", args: [senderEmail] });
-      if(userRes.rows.length > 0) {
-        if(userRes.rows[0].webhook_url) webhookUrl = userRes.rows[0].webhook_url;
-        if(userRes.rows[0].agent_user_id) agentUserId = userRes.rows[0].agent_user_id;
+      const userRes = await db.execute({ sql: "SELECT webhook_url FROM users WHERE email = ?", args: [senderEmail] });
+      if(userRes.rows.length > 0 && userRes.rows[0].webhook_url) {
+        webhookUrl = userRes.rows[0].webhook_url;
       }
     }
 
@@ -233,39 +231,25 @@ app.post('/api/chat', async (req, res) => {
       }
     }
 
-    // 2. 외부 에이전트 API 포워딩 (agent_user_id가 설정된 경우)
-    let agentForwarded = false;
-    if (agentUserId) {
-      try {
-        const agentRes = await fetch('https://api.agent.aipart.io/messages/inbound', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: agentUserId, content: cleanMsg })
-        });
-        console.log(`[Agent API Forward] user_id=${agentUserId}, status=${agentRes.status}`);
-        agentForwarded = agentRes.ok;
-      } catch (agentErr) {
-        console.error('[Agent API Forward Error]:', agentErr.message);
-      }
-    }
-
     let botResponse = '';
 
     if (webhookUrl) {
       try {
-        await fetch(webhookUrl, {
+        console.log(`[Chat → Webhook] ${senderEmail} → ${webhookUrl}: "${cleanMsg.substring(0, 50)}..."`);
+        const fwdRes = await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: cleanMsg, room_id, sender_email: senderEmail })
+          body: JSON.stringify({ message: cleanMsg })
         });
-        return res.json({ success: true, forwarded: true, agentForwarded });
+        console.log(`[Chat → Webhook] 응답 status=${fwdRes.status}`);
+        return res.json({ success: true, forwarded: true });
       } catch (err) {
         console.error('[Webhook Outbound Error]:', err.message);
         botResponse = `[시스템 에러] 안티그래비티 에이전트와 통신할 수 없습니다. 로컬 서버(맥미니)가 꺼져 있거나 Cloudflare Tunnel 주소가 유효하지 않습니다.`;
       }
     } else {
       // 웹훅 미설정: 메시지는 이미 DB에 저장됨 → 조용히 성공 반환
-      return res.json({ success: true, forwarded: false, agentForwarded });
+      return res.json({ success: true, forwarded: false });
     }
     
     // 웹훅 통신 에러 시에만 에러 응답 저장

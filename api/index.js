@@ -263,18 +263,18 @@ app.post('/api/chat', async (req, res) => {
         console.error('[Webhook Outbound Error]:', err.message);
         botResponse = `[시스템 에러] 안티그래비티 에이전트와 통신할 수 없습니다. 로컬 서버(맥미니)가 꺼져 있거나 Cloudflare Tunnel 주소가 유효하지 않습니다.`;
       }
-    } else if (agentForwarded) {
-      // 외부 에이전트 API로 전달 성공 + 웹훅 미설정: 성공으로 처리
-      return res.json({ success: true, forwarded: false, agentForwarded: true });
     } else {
-      botResponse = `[시스템 알림] 안티그래비티 웹훅 주소가 설정되지 않았습니다. 관리자 화면에서 맥미니 웹훅 주소를 입력해 주세요.`;
+      // 웹훅 미설정: 메시지는 이미 DB에 저장됨 → 조용히 성공 반환
+      return res.json({ success: true, forwarded: false, agentForwarded });
     }
     
-    // 에러/알림 응답 저장 (발신자와 동일한 사용자에게 귀속)
-    await db.execute({
-      sql: 'INSERT INTO messages (role, content, session_date, room_id, sender_email) VALUES (?, ?, ?, ?, ?)',
-      args: ['bot', botResponse, getGlobalSessionDate(), null, senderEmail]
-    });
+    // 웹훅 통신 에러 시에만 에러 응답 저장
+    if (botResponse) {
+      await db.execute({
+        sql: 'INSERT INTO messages (role, content, session_date, room_id, sender_email) VALUES (?, ?, ?, ?, ?)',
+        args: ['bot', botResponse, getGlobalSessionDate(), null, senderEmail]
+      });
+    }
 
     res.json({ success: true, reply: botResponse });
   } catch (err) {

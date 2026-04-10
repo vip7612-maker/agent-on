@@ -556,16 +556,20 @@ async function handleSend() {
   currentMsgCount = -1;
 
   try {
-    const headers = { 'Content-Type': 'application/json', 'User-Email': getCurrentUserEmail() };
-    await fetch('/api/chat', {
+    const userEmail = getCurrentUserEmail();
+    const payload = { message: finalMessage, room_id: currentRoomId };
+    console.log('[handleSend] email:', userEmail, 'room_id:', currentRoomId, 'msg:', finalMessage.substring(0, 30));
+    const response = await fetch('/api/chat', {
       method: 'POST',
-      headers: headers,
-      body: JSON.stringify({ message: finalMessage, room_id: currentRoomId })
+      headers: { 'Content-Type': 'application/json', 'User-Email': userEmail },
+      body: JSON.stringify(payload)
     });
+    const data = await response.json();
+    console.log('[handleSend] 서버 응답:', JSON.stringify(data));
     // POST 직후 즉각 1회 동기화
     syncChats();
   } catch (err) {
-    console.error(err);
+    console.error('[handleSend] 에러:', err);
   }
 }
 
